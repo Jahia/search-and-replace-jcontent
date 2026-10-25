@@ -4,6 +4,9 @@
 
 ### Build
 
+- MIT `LICENSE` file at the root of the repository (the pom only declared the license in a header).
+- The bundle description (pom `<description>`, shown by the module manager and the Store) describes the
+  jContent app and its rules; 1.1.0 still described a Content Editor tool and recursive matching.
 - `package.json` follows the pom version (1.1.1-SNAPSHOT): `release:prepare` bumps the pom only, so the
   1.1.0 jar carried `"version": "1.1.0-SNAPSHOT"` in `javascript/apps/package.json`.
 
