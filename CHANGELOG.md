@@ -8,6 +8,9 @@
   readable nodes, and a replacement fails on nodes the user may not change.
 - New `searchAndReplace` permission, declared under `site-admin` (held by site administrators), required
   on the site by every field that takes a site key. The jContent app is shown only to users holding it.
+- Rich text shown in the results and the preview is sanitized with DOMPurify 3.4.16 and an allowlist
+  (formatting tags only, no attribute but the highlight's class). The previous blocklist kept
+  `xlink:href="javascript:"` inside SVG, `formaction`, `data:` URLs and `style` from an editor's content.
 - `replaceInNodes` is no longer reachable from `Query`: reads are on `Query.searchAndReplace`, the write on
   `Mutation.searchAndReplace` only.
 

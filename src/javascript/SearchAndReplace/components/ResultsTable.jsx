@@ -5,7 +5,8 @@ import {Button, Chip, DataTable, Typography} from '@jahia/moonstone';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import styles from '../SearchAndReplace.scss';
-import {isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
+import DOMPurify from 'dompurify';
+import {PREVIEW_HTML_CONFIG, isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
 
 // Matches shown in a row before "Show all"
 const VISIBLE_MATCHES = 2;
@@ -33,9 +34,11 @@ const buildParentLink = (parentContainerPath, siteKey, language) => {
 };
 
 const MatchValue = ({value, searchTerm, keyPrefix}) => (
+    // Rich text from the repository, sanitized with an allowlist before it is rendered:
+    // nosemgrep: jahia-react-dangerouslysetinnerhtml-unsanitized - value passes DOMPurify.sanitize with PREVIEW_HTML_CONFIG (formatting tags only, no attribute but class)
     isHtmlContent(value) ? (
         <div
-            dangerouslySetInnerHTML={{__html: sanitizeAndHighlightHtml(value, searchTerm, styles.highlight)}}
+            dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(sanitizeAndHighlightHtml(value, searchTerm, styles.highlight), PREVIEW_HTML_CONFIG)}}
             className={styles.matchValueHtml}
         />
     ) : (

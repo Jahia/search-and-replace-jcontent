@@ -1,4 +1,5 @@
 import React from 'react';
+import DOMPurify from 'dompurify';
 
 export const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -10,30 +11,64 @@ export const isHtmlContent = value => {
     return /<\/?[a-z][\s\S]*>/i.test(value);
 };
 
+/**
+ * Allowlist for HTML that comes from the repository (an editor's rich text) and is shown in the panel:
+ * formatting tags only, no attribute except the class of the highlight, so no link, image, style, form
+ * or URL of any scheme survives. Links show as text.
+ */
+export const PREVIEW_HTML_CONFIG = {
+    ALLOWED_TAGS: [
+        'p',
+        'br',
+        'strong',
+        'b',
+        'em',
+        'i',
+        'u',
+        's',
+        'sub',
+        'sup',
+        'span',
+        'div',
+        'a',
+        'ul',
+        'ol',
+        'li',
+        'blockquote',
+        'code',
+        'pre',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'table',
+        'thead',
+        'tbody',
+        'tr',
+        'th',
+        'td',
+        'mark'
+    ],
+    ALLOWED_ATTR: ['class'],
+    ALLOW_DATA_ATTR: false
+};
+
+/** Sanitizes HTML with the allowlist above; call it on what reaches dangerouslySetInnerHTML. */
+export const sanitizePreviewHtml = html => DOMPurify.sanitize(html || '', PREVIEW_HTML_CONFIG);
+
+/**
+ * Sanitizes rich text with the allowlist, then wraps each occurrence of the term in its text nodes
+ * in a mark element. The caller sanitizes the result again where it renders it.
+ */
 export const sanitizeAndHighlightHtml = (rawHtml, term, highlightClassName) => {
     if (!rawHtml || typeof window === 'undefined') {
-        return rawHtml;
+        return '';
     }
 
     const parser = new window.DOMParser();
-    const doc = parser.parseFromString(rawHtml, 'text/html');
-
-    doc.querySelectorAll('script, iframe, object, embed').forEach(node => node.remove());
-    doc.querySelectorAll('*').forEach(node => {
-        Array.from(node.attributes).forEach(attribute => {
-            const attributeName = attribute.name.toLowerCase();
-            const attributeValue = attribute.value || '';
-
-            if (attributeName.startsWith('on')) {
-                node.removeAttribute(attribute.name);
-                return;
-            }
-
-            if ((attributeName === 'href' || attributeName === 'src') && /^javascript:/i.test(attributeValue.trim())) {
-                node.removeAttribute(attribute.name);
-            }
-        });
-    });
+    const doc = parser.parseFromString(sanitizePreviewHtml(rawHtml), 'text/html');
 
     const normalizedTerm = (term || '').trim();
     if (!normalizedTerm) {
