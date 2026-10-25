@@ -90,7 +90,7 @@ export const SEARCH = `query Search($siteKey: String!, $term: String!, $language
         searchNodes(termToSearch: $term, siteKey: $siteKey, language: $language, limit: $limit, offset: $offset,
                 deepSearch: $deepSearch) {
             totalCount truncated
-            nodes { uuid path matchingProperties { name label value replaceable } }
+            nodes { uuid path matchingProperties { name label value replaceable notReplaceableReason } }
         }
     }
 }`;

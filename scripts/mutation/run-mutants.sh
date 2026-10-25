@@ -72,7 +72,7 @@ run_mutant regex-without-deadline "$JAVA/service/TextReplacer.java" search-and-b
 run_mutant folder-covers-items "$JAVA/service/ReplaceScope.java" replace-scope.spec.ts \
   's/(public static boolean coversChildrenOf\(JCRNodeWrapper node\) throws RepositoryException \{)/$1 if (true) { return true; }/'
 run_mutant every-text-match-replaceable "$JAVA/graphql/SearchAndReplaceQueries.java" search-and-batch.spec.ts \
-  's/return !value\.equals\(TextReplacer\.replace\(/return true || !value.equals(TextReplacer.replace(/'
+  's/return GqlNotReplaceableReason\.DIFFERENT_SPELLING;/return null;/'
 
 echo "Restoring the original module"
 deploy

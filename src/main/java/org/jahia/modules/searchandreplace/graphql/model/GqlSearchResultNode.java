@@ -79,6 +79,7 @@ public class GqlSearchResultNode {
         this.nodeTypeLabel = nodeTypeLabel;
     }
 
+    // nosemgrep: jahia-graphql-admin-no-permission - read-only field of a result; searchNodes checks the searchAndReplace permission
     @GraphQLField
     public String getCreated() {
         return created;

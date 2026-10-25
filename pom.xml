@@ -60,7 +60,47 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        <!-- Older releases the 8.2 parent depends on (jahia-commons 1.0.8, Spring 3.2.18.RELEASE_OSGI)
+             are served only from Jahia's archives since 2026-10-22: a fresh CI runner needs both. -->
+        <repository>
+            <id>jahia-releases-archives</id>
+            <name>Jahia Releases Archive</name>
+            <url>https://archives-devtools.jahia.com/jahia-releases</url>
+            <releases><enabled>true</enabled><updatePolicy>never</updatePolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
+            <id>jahia-thirdparty-archives</id>
+            <name>Jahia Third-Party Releases Archive</name>
+            <url>https://archives-devtools.jahia.com/thirdparty-releases</url>
+            <releases><enabled>true</enabled><updatePolicy>never</updatePolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
     </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>jahia-public</id>
+            <name>Jahia Public Repository</name>
+            <url>https://devtools.jahia.com/nexus/content/groups/public</url>
+            <releases><enabled>true</enabled><updatePolicy>never</updatePolicy></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>jahia-releases-archives</id>
+            <name>Jahia Releases Archive</name>
+            <url>https://archives-devtools.jahia.com/jahia-releases</url>
+            <releases><enabled>true</enabled><updatePolicy>never</updatePolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>jahia-thirdparty-archives</id>
+            <name>Jahia Third-Party Releases Archive</name>
+            <url>https://archives-devtools.jahia.com/thirdparty-releases</url>
+            <releases><enabled>true</enabled><updatePolicy>never</updatePolicy></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+    </pluginRepositories>
 
     <build>
         <resources>
@@ -86,7 +126,7 @@
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
-                <version>1.8.0</version>
+                <version>2.0.1</version>
                 <executions>
                     <execution>
                         <id>npm install node and yarn</id>
@@ -95,8 +135,9 @@
                             <goal>install-node-and-yarn</goal>
                         </goals>
                         <configuration>
-                            <nodeVersion>v20.18.0</nodeVersion>
-                            <yarnVersion>v1.22.10</yarnVersion>
+                            <!-- 22, not 18/20: an unpinned resolution pulls graphql@17, which refuses older Node -->
+                            <nodeVersion>v22.21.0</nodeVersion>
+                            <yarnVersion>v1.22.22</yarnVersion>
                         </configuration>
                     </execution>
                     <execution>

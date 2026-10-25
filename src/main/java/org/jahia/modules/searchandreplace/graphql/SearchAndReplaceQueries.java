@@ -304,7 +304,7 @@ public class SearchAndReplaceQueries {
             resultNode.setName(node.getName());
             resultNode.setDisplayName(resolveDisplayName(node, language));
             resultNode.setNodeType(node.getPrimaryNodeTypeName());
-            resultNode.setNodeTypeLabel(node.getPrimaryNodeType().getName());
+            resultNode.setNodeTypeLabel(node.getPrimaryNodeType().getLabel(node.getSession().getLocale()));
 
             JCRNodeWrapper translationNode = getTranslationNode(node, language);
             resultNode.setCreated(formatDate(resolveNodeDate(node, translationNode, "jcr:created")));
@@ -391,7 +391,7 @@ public class SearchAndReplaceQueries {
                     for (Value value : property.getValues()) {
                         String raw = value != null ? value.getString() : null;
                         if (containsIgnoreCase(raw, searchTerm)) {
-                            matches.add(new GqlPropertyMatch(propName, raw, label, wouldChange(raw, searchTerm, kind)));
+                            matches.add(new GqlPropertyMatch(propName, raw, label, notReplaceableReason(raw, searchTerm, kind)));
                         }
                     }
                     continue;
@@ -399,7 +399,7 @@ public class SearchAndReplaceQueries {
 
                 String raw = property.getString();
                 if (containsIgnoreCase(raw, searchTerm)) {
-                    matches.add(new GqlPropertyMatch(propName, raw, label, wouldChange(raw, searchTerm, kind)));
+                    matches.add(new GqlPropertyMatch(propName, raw, label, notReplaceableReason(raw, searchTerm, kind)));
                 }
             }
         } catch (RepositoryException e) {
@@ -410,15 +410,18 @@ public class SearchAndReplaceQueries {
     }
 
     /**
-     * Tells whether the replacement the UI runs (case-insensitive, text only) would change the value.
-     * Search also finds a term written with other accents or split by markup ("Caf&eacute;",
-     * "Ac&lt;em&gt;me"); such a match is shown but is not replaceable.
+     * Tells why the replacement the UI runs (case-insensitive, text only) would not change the value,
+     * or {@code null} when it would. Search also finds a term written with other accents or split by
+     * markup ("Caf&eacute;", "Ac&lt;em&gt;me"); such a match is shown but is not replaceable.
      */
-    private boolean wouldChange(String value, String searchTerm, TextFields.Kind kind) {
-        if (kind == null || value == null) {
-            return false;
+    private GqlNotReplaceableReason notReplaceableReason(String value, String searchTerm, TextFields.Kind kind) {
+        if (kind == null) {
+            return GqlNotReplaceableReason.NOT_A_TEXT_FIELD;
         }
-        return !value.equals(TextReplacer.replace(value, searchTerm, "\u0000", TextReplacer.Mode.CASE_INSENSITIVE, kind));
+        if (value == null || value.equals(TextReplacer.replace(value, searchTerm, "\u0000", TextReplacer.Mode.CASE_INSENSITIVE, kind))) {
+            return GqlNotReplaceableReason.DIFFERENT_SPELLING;
+        }
+        return null;
     }
 
     private boolean containsIgnoreCase(String value, String searchTerm) {

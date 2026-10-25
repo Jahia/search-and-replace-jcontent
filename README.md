@@ -42,8 +42,12 @@ It provides:
 - **Deep search** (`deepSearch`, the "Also find parts of words" box): when the index finds nothing,
   scan every node of the site. It finds parts of words; it is slow on large sites, so it runs only on
   request.
-- A match is **replaceable** when it is a text field and the replacement would change it. A term written
-  with other accents ("cafe" for "Café") or split by formatting is found but marked read-only.
+- A match is **replaceable** when it is a text field and the replacement would change it. Other matches
+  carry `notReplaceableReason`: `NOT_A_TEXT_FIELD` (system property, link, list value) or
+  `DIFFERENT_SPELLING` (only inside markup, with other accents, "cafe" for "Café", or split by
+  formatting). The UI shows them apart and muted, with the reason, below the replaceable ones; an item
+  with nothing replaceable is greyed out and cannot be selected, and the replace dialog lists these
+  matches under "Not updated", without a checkbox.
 
 ### Replace
 - Supports `EXACT_MATCH`, `CASE_INSENSITIVE`, and `REGEX`.
@@ -256,8 +260,9 @@ mutation ReplaceInNodesMutation(
 ## 8. Build and Packaging
 
 ### Prerequisites
-- Java 11+
-- Maven 3.8+
+- JDK 17 and Maven 3.8, pinned in `mise.toml` (`mise install`). frontend-maven-plugin 2.0.1 needs
+  JDK 17 (the classes still target Java 11); Maven 3.9 writes a wrong `Import-Package` while the build
+  stays green.
 
 ### Standard build
 ```bash
@@ -265,10 +270,10 @@ mvn clean install
 ```
 
 This build:
-- Installs Node `v20.18.0` and Yarn `v1.22.10` via `frontend-maven-plugin`.
+- Installs Node `v22.21.0` and Yarn `v1.22.22` via `frontend-maven-plugin`.
 - Runs frontend build and produces module assets.
 - Packages OSGi bundle:
-  - `target/search-and-replace-1.0.0-SNAPSHOT.jar`
+  - `target/search-and-replace-1.1.0-SNAPSHOT.jar`
 
 ### Frontend-only build (local)
 ```bash
@@ -277,7 +282,7 @@ node --max_old_space_size=2048 ./node_modules/.bin/webpack --mode=production
 
 ## 9. Deployment
 
-- Deploy `target/search-and-replace-1.0.0-SNAPSHOT.jar` using Jahia Module Manager or your deployment pipeline.
+- Deploy `target/search-and-replace-1.1.0-SNAPSHOT.jar` using Jahia Module Manager or your deployment pipeline.
 - Ensure the module is installed on the target site (`requireModuleInstalledOnSite: "search-and-replace"` is enforced in UI registration).
 
 ## 10. Developer Commands
@@ -346,7 +351,7 @@ src/javascript/AdminPanel/                                  # Jahia route regist
 src/javascript/SearchAndReplace/                            # UI feature (search, filters, table, replace modal)
 ```
 
-## 14. Legacy Docs
+## 14. Agent harness
 
-`QUICKSTART.md`, `README_IMPLEMENTATION.md`, and `IMPLEMENTATION_SUMMARY.md` are retained for historical context.
-This `README.md` is the authoritative functional and technical documentation.
+`.agents/` holds this module's architecture and decisions for AI agents and developers. Generic Jahia
+knowledge (UI extensions, GraphQL security, Cypress) lives in the AIStartupKit harness it links to.

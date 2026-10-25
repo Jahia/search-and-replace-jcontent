@@ -3,6 +3,7 @@ import {useTranslation} from 'react-i18next';
 import {useQuery} from '@apollo/client';
 import {
     Header,
+    LayoutContent,
     Typography,
     Input,
     Dropdown,
@@ -37,7 +38,6 @@ export const SearchAndReplace = ({siteKey}) => {
     const [showFilters, setShowFilters] = useState(false);
     const [selectedNodes, setSelectedNodes] = useState([]);
     const [replaceModalOpen, setReplaceModalOpen] = useState(false);
-    const [searchExecuted, setSearchExecuted] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState((i18n?.language || 'en').split('-')[0]);
     const [deepSearch, setDeepSearch] = useState(false);
 
@@ -147,7 +147,6 @@ export const SearchAndReplace = ({siteKey}) => {
     const handleSearch = useCallback(() => {
         if (searchTerm.trim()) {
             setCurrentSearchTerm(searchTerm);
-            setSearchExecuted(true);
             setSelectedNodes([]);
         }
     }, [searchTerm]);
@@ -171,7 +170,6 @@ export const SearchAndReplace = ({siteKey}) => {
         setCurrentSearchTerm('');
         setFilters({});
         setSelectedNodes([]);
-        setSearchExecuted(false);
     }, []);
 
     // Replace handler
@@ -269,119 +267,105 @@ export const SearchAndReplace = ({siteKey}) => {
     const activeFilterCount = Object.keys(normalizedFilters).length;
     const displayedResultCount = filteredNodes.length;
 
+    const headerActions = [
+        currentSearchTerm && (
+            <Button
+                key="clear"
+                label={t('label.clear')}
+                variant="outlined"
+                size="big"
+                onClick={handleClear}
+            />
+        ),
+        <Button
+            key="filters"
+            label={activeFilterCount > 0 ? `${t('label.filters')} (${activeFilterCount})` : t('label.filters')}
+            variant={showFilters ? 'default' : 'outlined'}
+            color={activeFilterCount > 0 ? 'accent' : 'default'}
+            size="big"
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters(!showFilters)}
+        />,
+        selectedNodes.length > 0 && (
+            <Button
+                key="replace"
+                label={selectedNodes.length === 1 ?
+                    t('label.replaceInOneNode') :
+                    t('label.replaceInNodes', {count: selectedNodes.length})}
+                color="accent"
+                size="big"
+                onClick={handleReplace}
+            />
+        )
+    ].filter(Boolean);
+
     return (
-        <div className={styles.layout}>
-            <Header
-                title={t('label.title', {siteInfo: siteKey})}
-                mainActions={[
-                    currentSearchTerm && (
-                        <Button
-                            key="clear"
-                            label={t('label.clear')}
-                            variant="outlined"
+        <LayoutContent
+            hasPadding
+            className={styles.layout}
+            data-snr-role="panel"
+            header={<Header title={t('label.title', {siteInfo: siteKey})} mainActions={headerActions}/>}
+        >
+            <div className={styles.content}>
+                <section className={styles.card} aria-labelledby="snr-search-heading">
+                    <Typography component="h2" variant="heading" id="snr-search-heading">
+                        {t('label.heroTitle')}
+                    </Typography>
+                    <Typography variant="body">{t('label.heroDescription')}</Typography>
+                    <div className={styles.searchBar}>
+                        <Input
+                            autoFocus
+                            className={styles.searchInput}
+                            aria-label={t('label.searchPlaceholder')}
+                            placeholder={t('label.searchPlaceholder')}
+                            value={searchTerm}
                             size="big"
-                            onClick={handleClear}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            onKeyPress={handleKeyPress}
                         />
-                    ),
-                    <Button
-                        key="filters"
-                        label={activeFilterCount > 0 ? `${t('label.filters')} (${activeFilterCount})` : t('label.filters')}
-                        variant={showFilters ? 'default' : 'outlined'}
-                        color={activeFilterCount > 0 ? 'accent' : 'default'}
-                        size="big"
-                        onClick={() => setShowFilters(!showFilters)}
-                    />,
-                    selectedNodes.length > 0 && (
+                        <Dropdown
+                            className={styles.searchLanguageDropdown}
+                            aria-label={t('label.language')}
+                            data={languageDropdownData}
+                            value={selectedLanguage}
+                            size="medium"
+                            variant="outlined"
+                            onChange={(event, item) => {
+                                if (item?.value) {
+                                    setSelectedLanguage(item.value);
+                                    setSelectedNodes([]);
+                                }
+                            }}
+                        />
                         <Button
-                            key="replace"
-                            label={t('label.replaceInNodes', {count: selectedNodes.length})}
+                            label={t('label.searchButton')}
                             color="accent"
                             size="big"
-                            onClick={handleReplace}
+                            isDisabled={!searchTerm.trim()}
+                            onClick={handleSearch}
                         />
-                    )
-                ].filter(Boolean)}
-            />
-            <div className={styles.container}>
-
-                {/* Hero Search Section */}
-                <div className={styles.searchHero}>
-                    <div className={styles.searchHeroContent}>
-                        {!currentSearchTerm && (
-                            <>
-                                <Typography variant="heading" weight="bold" className={styles.searchHeroTitle}>
-                                    {t('label.heroTitle')}
-                                </Typography>
-                                <Typography variant="body" className={styles.searchHeroDescription}>
-                                    {t('label.heroDescription')}
-                                </Typography>
-                            </>
-                        )}
-                        <div className={styles.searchBar}>
-                            <Input
-                                autoFocus
-                                className={styles.searchInput}
-                                placeholder={t('label.searchPlaceholder')}
-                                value={searchTerm}
-                                size="big"
-                                onChange={e => setSearchTerm(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                            />
-                            <Dropdown
-                                className={styles.searchLanguageDropdown}
-                                data={languageDropdownData}
-                                value={selectedLanguage}
-                                size="medium"
-                                variant="outlined"
-                                onChange={(event, item) => {
-                                    if (item?.value) {
-                                        setSelectedLanguage(item.value);
-                                        setSelectedNodes([]);
-                                    }
-                                }}
-                            />
-                            <Button
-                                label={t('label.searchButton')}
-                                color="accent"
-                                size="big"
-                                isDisabled={!searchTerm.trim()}
-                                onClick={handleSearch}
-                            />
-                        </div>
-                        <div className={styles.searchOptions}>
-                            <CheckboxItem
-                                id="search-and-replace-deep-search"
-                                value="deepSearch"
-                                label={t('label.deepSearch')}
-                                checked={deepSearch}
-                                onChange={(event, value, checked) => {
-                                    setDeepSearch(checked);
-                                    setSelectedNodes([]);
-                                }}
-                            />
-                        </div>
-                        {currentSearchTerm && (
-                            <div className={styles.searchInfoBar}>
-                                <Chip
-                                    label={t('label.searchingFor', {term: currentSearchTerm})}
-                                    color="default"
-                                />
-                                <Chip
-                                    label={t('label.searchLanguage', {language: getLanguageLabel(selectedLanguage)})}
-                                    color="default"
-                                />
-                                {activeFilterCount > 0 && (
-                                    <Chip
-                                        label={t('label.activeFilters', {count: activeFilterCount})}
-                                        color="accent"
-                                    />
-                                )}
-                            </div>
-                        )}
                     </div>
-                </div>
+                    <CheckboxItem
+                        id="search-and-replace-deep-search"
+                        value="deepSearch"
+                        label={t('label.deepSearch')}
+                        checked={deepSearch}
+                        onChange={(event, value, checked) => {
+                            setDeepSearch(checked);
+                            setSelectedNodes([]);
+                        }}
+                    />
+                    {currentSearchTerm && (
+                        <div className={styles.chips}>
+                            <Chip label={t('label.searchingFor', {term: currentSearchTerm})}/>
+                            <Chip label={t('label.searchLanguage', {language: getLanguageLabel(selectedLanguage)})}/>
+                            {activeFilterCount > 0 && (
+                                <Chip label={t('label.activeFilters', {count: activeFilterCount})} color="accent"/>
+                            )}
+                        </div>
+                    )}
+                </section>
 
-                {/* Filters Panel */}
                 {showFilters && (
                     <SearchFilters
                         availableNodeTypes={availableNodeTypes}
@@ -392,109 +376,63 @@ export const SearchAndReplace = ({siteKey}) => {
                     />
                 )}
 
-                {/* Results Section */}
-                <div className={styles.resultsSection}>
-                    {loading && (
-                        <div className={styles.loadingState}>
-                            <Loader size="big"/>
-                            <Typography variant="subheading" className={styles.loadingText}>
-                                {t('label.searching')}
-                            </Typography>
-                            <Typography variant="caption" color="default">
-                                {t('label.searchingDescription')}
-                            </Typography>
-                        </div>
-                    )}
+                {loading && (
+                    <section className={`${styles.card} ${styles.state}`} aria-busy="true">
+                        <Loader size="big"/>
+                        <Typography variant="subheading">{t('label.searching')}</Typography>
+                        <Typography variant="caption">{t('label.searchingDescription')}</Typography>
+                    </section>
+                )}
 
-                    {error && (
-                        <div className={styles.errorState}>
-                            <Typography variant="heading" color="danger" className={styles.errorTitle}>
-                                {t('label.errorTitle')}
-                            </Typography>
-                            <Typography variant="body" color="danger">
-                                {error.message}
-                            </Typography>
-                        </div>
-                    )}
+                {error && (
+                    <section className={`${styles.card} ${styles.state}`} role="alert">
+                        <Typography component="h2" variant="heading" color="danger">{t('label.errorTitle')}</Typography>
+                        <Typography variant="body" color="danger">{error.message}</Typography>
+                    </section>
+                )}
 
-                    {!loading && !error && searchExecuted && !currentSearchTerm && (
-                        <div className={styles.emptyState}>
-                            <Typography variant="heading" className={styles.emptyStateTitle}>
-                                {t('label.emptyStateTitle')}
-                            </Typography>
-                            <Typography variant="body" color="default">
-                                {t('label.emptyStateDescription')}
-                            </Typography>
-                        </div>
-                    )}
-
-                    {!loading && !error && currentSearchTerm && !hasResults && (
-                        <div className={styles.emptyState}>
-                            <Typography variant="heading" className={styles.emptyStateTitle}>
-                                {t('label.noResultsTitle')}
-                            </Typography>
-                            <Typography variant="body" color="default">
-                                {t('label.noResultsDescription', {term: currentSearchTerm})}
-                            </Typography>
-                            {activeFilterCount > 0 && (
-                                <Button
-                                    label={t('label.clearFilters')}
-                                    variant="outlined"
-                                    className={styles.emptyStateAction}
-                                    onClick={() => handleFiltersChange({})}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                    {!loading && !error && hasResults && (
-                        <div className={styles.resultsContainer}>
-                            {/* Results Summary Card */}
-                            <div className={styles.resultsSummaryCard}>
-                                <div className={styles.resultsSummaryContent}>
-                                    <div className={styles.resultsSummaryStats}>
-                                        <Typography variant="heading" className={styles.resultsCount}>
-                                            {displayedResultCount}
-                                        </Typography>
-                                        <Typography variant="body" className={styles.resultsLabel}>
-                                            {t('label.matchesFound')}
-                                        </Typography>
-                                    </div>
-                                    <div className={styles.resultsSummaryInfo}>
-                                        <Chip
-                                            label={`${t('label.searchTerm')}: "${currentSearchTerm}"`}
-                                            color="default"
-                                        />
-                                        {searchResults?.truncated && (
-                                            <Chip
-                                                label={t('label.resultsTruncated')}
-                                                color="warning"
-                                            />
-                                        )}
-                                        {selectedNodes.length > 0 && (
-                                            <Chip
-                                                label={t('label.selected', {count: selectedNodes.length})}
-                                                color="accent"
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Results Table */}
-                            <ResultsTable
-                                nodes={filteredNodes}
-                                selectedLanguage={selectedLanguage}
-                                siteKey={siteKey}
-                                searchTerm={currentSearchTerm}
-                                selectedNodes={selectedNodes}
-                                onSelectionChange={setSelectedNodes}
+                {!loading && !error && currentSearchTerm && !hasResults && (
+                    <section className={`${styles.card} ${styles.state}`} role="status">
+                        <Typography component="h2" variant="heading">{t('label.noResultsTitle')}</Typography>
+                        <Typography variant="body">{t('label.noResultsDescription', {term: currentSearchTerm})}</Typography>
+                        {activeFilterCount > 0 && (
+                            <Button
+                                label={t('label.clearFilters')}
+                                variant="outlined"
+                                onClick={() => handleFiltersChange({})}
                             />
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </section>
+                )}
 
-                {/* Replace Modal */}
+                {!loading && !error && hasResults && (
+                    <section className={styles.card} aria-labelledby="snr-results-heading">
+                        <div className={styles.resultsHeader}>
+                            <Typography component="h2" variant="heading" id="snr-results-heading">
+                                {displayedResultCount === 1 ?
+                                    t('label.oneResult') :
+                                    t('label.resultCount', {count: displayedResultCount})}
+                            </Typography>
+                            <div className={styles.chips}>
+                                {searchResults?.truncated && (
+                                    <Chip label={t('label.resultsTruncated')} color="warning"/>
+                                )}
+                                {selectedNodes.length > 0 && (
+                                    <Chip label={t('label.selected', {count: selectedNodes.length})} color="accent"/>
+                                )}
+                            </div>
+                        </div>
+                        <ResultsTable
+                            nodes={filteredNodes}
+                            selectedLanguage={selectedLanguage}
+                            siteKey={siteKey}
+                            searchTerm={currentSearchTerm}
+                            selectedNodes={selectedNodes}
+                            onSelectionChange={setSelectedNodes}
+                        />
+                    </section>
+                )}
+
                 {replaceModalOpen && (
                     <ReplaceModal
                         isOpen={replaceModalOpen}
@@ -508,7 +446,7 @@ export const SearchAndReplace = ({siteKey}) => {
                     />
                 )}
             </div>
-        </div>
+        </LayoutContent>
     );
 };
 

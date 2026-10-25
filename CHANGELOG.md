@@ -8,6 +8,9 @@
   readable nodes, and a replacement fails on nodes the user may not change.
 - New `searchAndReplace` permission, declared under `site-admin` (held by site administrators), required
   on the site by every field that takes a site key. The jContent app is shown only to users holding it.
+- Rich text shown in the results and the preview is sanitized with DOMPurify 3.4.16 and an allowlist
+  (formatting tags only, no attribute but the highlight's class). The previous blocklist kept
+  `xlink:href="javascript:"` inside SVG, `formaction`, `data:` URLs and `style` from an editor's content.
 - `replaceInNodes` is no longer reachable from `Query`: reads are on `Query.searchAndReplace`, the write on
   `Mutation.searchAndReplace` only.
 
@@ -34,6 +37,31 @@
 - Argument errors are returned with their message instead of "Internal Server Error(s)".
 - The replace dialog reuses the search rows instead of running the search again, and says "Nothing was
   replaced" instead of "Replace failed" when nothing matched; selection is cleared on language change.
+
+### Interface
+
+- The panel follows jContent's layout: `LayoutContent` with a `Header` (title and actions), the content in
+  cards at the full width of the panel (no `max-width`).
+- Results in a Moonstone `DataTable`: built-in selection with select-all, pagination (25 to 200 rows per
+  page), the matching properties in their row with "Show all", names clamped to two lines, the content
+  type's display name instead of its technical name, rows that grow with their content.
+- The replace dialog is a Moonstone `Modal` (Escape, focus kept inside, portal).
+- Matches the replacement does not change are shown apart and muted, with the reason
+  (`notReplaceableReason`: not a text field, or different spelling), below the replaceable ones; an item
+  with nothing replaceable cannot be selected; the dialog lists them under "Not updated", without a
+  checkbox.
+- Wording for editors ("items", "content type") instead of "nodes"; one key per singular and plural;
+  section headings, labels on the search field and the language list, alerts and statuses announced.
+
+### Build
+
+- Moonstone 2.20.3, the version jContent 3.7.1 and 3.8 run (was 2.17.5).
+- frontend-maven-plugin 2.0.1 with Node 22.21.0 and Yarn 1.22.22; JDK 17 to build (classes still target
+  Java 11); `mise.toml` pins JDK 17, Maven 3.8 and Node 22.
+- Jahia's archive repositories declared (fresh CI runners cannot resolve the 8.2 parent without them).
+- Babel targets the default browser list instead of IE 10 and Safari 7.
+- Removed `tmp/`, `schema.graphql` and the three stub documents; added `.agents/` (architecture,
+  decisions, testing).
 
 ### Breaking
 

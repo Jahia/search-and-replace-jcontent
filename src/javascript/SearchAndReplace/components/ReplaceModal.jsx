@@ -7,65 +7,30 @@ import {
     Typography,
     CheckboxItem,
     Chip,
-    Loader
+    Loader,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader
 } from '@jahia/moonstone';
 import PropTypes from 'prop-types';
 import {PREVIEW_REPLACE_QUERY, REPLACE_IN_NODES_MUTATION} from '../SearchAndReplace.gql-queries';
 import styles from '../SearchAndReplace.scss';
-import {isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
+import DOMPurify from 'dompurify';
+import {PREVIEW_HTML_CONFIG, isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
 
-const Dialog = ({isOpen, className, onClose, children}) => (
-    isOpen ? (
-        <div
-            className={styles.modalOverlay}
-            role="presentation"
-            onClick={event => {
-                if (event.target === event.currentTarget && onClose) {
-                    onClose();
-                }
-            }}
-        >
-            <div className={`${styles.replaceModal} ${className || ''}`} role="dialog" aria-modal="true">
-                {children}
-            </div>
-        </div>
-    ) : null
-);
-Dialog.propTypes = {
-    isOpen: PropTypes.bool,
-    className: PropTypes.string,
-    onClose: PropTypes.func,
-    children: PropTypes.node
-};
-
-const DialogTitle = ({children}) => (
-    <div className={styles.modalHeader}>
-        <Typography variant="heading" weight="bold">
-            {children}
-        </Typography>
-    </div>
-);
-DialogTitle.propTypes = {
-    children: PropTypes.node
-};
-
-const DialogContent = ({children}) => (
-    <div className={styles.modalBody}>{children}</div>
-);
+// Body and footer of the Moonstone Modal; the modal itself gives the title, Escape, focus and the portal.
+const DialogContent = ({children}) => <ModalBody>{children}</ModalBody>;
 DialogContent.propTypes = {
     children: PropTypes.node
 };
 
-const DialogContentText = ({children}) => (
-    <div>{children}</div>
-);
+const DialogContentText = ({children}) => <div>{children}</div>;
 DialogContentText.propTypes = {
     children: PropTypes.node
 };
 
-const DialogActions = ({children}) => (
-    <div className={styles.modalFooter}>{children}</div>
-);
+const DialogActions = ({children}) => <ModalFooter>{children}</ModalFooter>;
 DialogActions.propTypes = {
     children: PropTypes.node
 };
@@ -124,6 +89,18 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
         });
         return Array.from(propsMap.entries()).map(([name, label]) => ({name, label}));
     }, [nodesData]);
+
+    // Matches the replacement never changes, listed apart and never selectable
+    const readOnlyMatches = React.useMemo(() => nodesData.flatMap(node => (node.matchingProperties || [])
+        .filter(prop => prop && prop.name && !prop.replaceable)
+        .map(prop => ({
+            key: `${node.uuid}-${prop.label}`,
+            node: node.displayName || node.name,
+            label: prop.label || prop.name,
+            reason: prop.notReplaceableReason === 'DIFFERENT_SPELLING' ?
+                'label.reasonDifferentSpelling' :
+                'label.reasonNotATextField'
+        }))), [nodesData]);
 
     // Initialize selected properties
     useEffect(() => {
@@ -195,10 +172,12 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
 
     const renderPreviewValue = useCallback((value, highlightTerm, valueClassName) => {
         if (isHtmlContent(value)) {
+            // Rich text from the repository, sanitized with an allowlist before it is rendered:
+            // nosemgrep: jahia-react-dangerouslysetinnerhtml-unsanitized - value passes DOMPurify.sanitize with PREVIEW_HTML_CONFIG (formatting tags only, no attribute but class)
             return (
                 <div
                     /* eslint-disable-next-line react/no-danger */
-                    dangerouslySetInnerHTML={{__html: sanitizeAndHighlightHtml(value, highlightTerm, styles.highlight)}}
+                    dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(sanitizeAndHighlightHtml(value, highlightTerm, styles.highlight), PREVIEW_HTML_CONFIG)}}
                     className={`${valueClassName} ${styles.modalPreviewHtml}`}
                 />
             );
@@ -217,7 +196,8 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
         onClose();
     }, [onReplaceComplete, onClose]);
 
-    // Render based on step
+    // Render based on step: one branch per step of the dialog
+    // eslint-disable-next-line complexity
     const renderContent = () => {
         switch (step) {
             case 'input':
@@ -282,6 +262,23 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                                     ))}
                                 </div>
                             </div>
+                            {readOnlyMatches.length > 0 && (
+                                <div className={styles.modalReadOnly} role="group" aria-labelledby="snr-not-updated-heading">
+                                    <Typography variant="subheading" weight="bold" id="snr-not-updated-heading">
+                                        {t('label.notUpdatedHeading', {count: readOnlyMatches.length})}
+                                    </Typography>
+                                    <Typography variant="caption">{t('label.notUpdatedDescription')}</Typography>
+                                    <ul className={styles.modalReadOnlyList}>
+                                        {readOnlyMatches.map(item => (
+                                            <li key={item.key}>
+                                                <Typography variant="caption">
+                                                    <strong>{item.label}</strong>{' - '}{item.node}{' - '}<em>{t(item.reason)}</em>
+                                                </Typography>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </DialogContent>
                         <DialogActions>
                             <Button
@@ -466,16 +463,22 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
     );
 
     return (
-        <Dialog
+        <Modal
             isOpen={isOpen}
+            size="large"
             className={styles.replaceModal}
-            onClose={step === 'progress' ? undefined : onClose}
+            onOpenChange={open => {
+                // A running replacement cannot be dismissed
+                if (!open && step !== 'progress') {
+                    onClose();
+                }
+            }}
         >
-            <DialogTitle>
-                {dialogTitle}
-            </DialogTitle>
-            {renderContent()}
-        </Dialog>
+            <div className={styles.modalShell}>
+                <ModalHeader title={dialogTitle}/>
+                {renderContent()}
+            </div>
+        </Modal>
     );
 };
 
