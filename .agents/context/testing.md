@@ -36,3 +36,20 @@ JAHIA_URL=http://localhost:8080 SUPER_USER_PASSWORD=<password> yarn e2e:ci
 `scripts/mutation/run-mutants.sh` disables each guard in turn, redeploys and expects its spec to fail
 (`ONLY="name ..."` for some). It never relies on `ui-flow.spec.ts`. Wait until it has restored the
 sources before committing: it patches Java files in place while it runs.
+
+## Release
+
+The channel is a tag and a GitHub release with the jar (never Nexus, never `release:perform`).
+
+1. Every change reaches `main` through a pull request with the build green and the `jahia-security-scan`
+   rules clean (`semgrep scan --config ../jahia-security-scan/tools/semgrep-harness/rules/jahia .`,
+   excluding `node_modules`, `node`, `target` and `src/main/resources/javascript/apps`).
+2. Date the version's section in `CHANGELOG.md` in that pull request.
+3. On `main`: `mvn release:clean`, then `mvn -B release:prepare -DreleaseVersion=X.Y.Z
+   -DdevelopmentVersion=X.Y.(Z+1)-SNAPSHOT -Dtag=search-and-replace-X.Y.Z -DskipTests` (pushes the two
+   version commits and the tag).
+4. Build the jar in CI from the tag: `gh workflow run build.yml --ref search-and-replace-X.Y.Z`, then
+   `gh run download <run id> -n search-and-replace-bundle`. Check the manifest: version X.Y.Z, no
+   `Jahia-Source-Folders`.
+5. `gh release create search-and-replace-X.Y.Z <jar> --notes-file <the CHANGELOG section>`.
+

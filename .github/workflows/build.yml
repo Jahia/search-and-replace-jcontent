@@ -1,5 +1,7 @@
 # Builds the module and runs its unit tests on every pull request (whatever its base branch, so
-# stacked PRs are checked too) and on every push to main. The toolchain comes from mise.toml:
+# stacked PRs are checked too) and on every push to main. Run by hand on a release tag
+# (`gh workflow run build.yml --ref search-and-replace-X.Y.Z`), it builds the jar attached to the
+# GitHub release: a release jar never comes from a laptop build. The toolchain comes from mise.toml:
 # JDK 17 (frontend-maven-plugin 2.0.1 needs it; the classes still target Java 11), Maven 3.8 (3.9
 # writes a wrong Import-Package while the build stays green). The Cypress suite in tests/ needs a
 # running Jahia and is not run here.
@@ -9,6 +11,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -49,9 +52,11 @@ jobs:
           mvn -v | head -1
           mvn -v | grep -q "Apache Maven 3\.8\." || { echo "Maven 3.8 expected (see mise.toml)"; exit 1; }
 
-      # lint, webpack, unit tests and the OSGi bundle
+      # lint, webpack, unit tests and the OSGi bundle; no absolute build path in the manifest
       - name: Build
         run: mvn -B -ntp clean install
+        env:
+          JAHIA_DISABLE_SOURCE_FOLDERS: "true"
 
       - name: Check the bundle
         run: |
@@ -59,7 +64,9 @@ jobs:
             case "$f" in *-sources.jar) ;; *) jar="$f" ;; esac
           done
           unzip -l "$jar" | grep -q "javascript/apps/remoteEntry.js" || { echo "remoteEntry.js missing from $jar"; exit 1; }
-          unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\r' | perl -0pe 's/\n //g' | grep "^Import-Package"
+          manifest=$(unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\r' | perl -0pe 's/\n //g')
+          if grep -q "^Jahia-Source-Folders" <<<"$manifest"; then echo "Jahia-Source-Folders in the manifest"; exit 1; fi
+          grep "^Import-Package" <<<"$manifest"
 
       - name: Upload test reports
         if: failure()
