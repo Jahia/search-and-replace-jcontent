@@ -37,12 +37,25 @@ It provides:
   - `createdAfter`, `createdBefore`
   - `modifiedAfter`, `modifiedBefore`
   - `properties` (optional property-name whitelist)
+- Results: through the full-text index, at most `limit` rows (default 200, maximum 1000) after
+  `offset` rows; `truncated` tells that more exist. The UI asks for 200 and says so when truncated.
+- **Deep search** (`deepSearch`, the "Also find parts of words" box): when the index finds nothing,
+  scan every node of the site. It finds parts of words; it is slow on large sites, so it runs only on
+  request.
+- A match is **replaceable** when it is a text field and the replacement would change it. A term written
+  with other accents ("cafe" for "Café") or split by formatting is found but marked read-only.
 
 ### Replace
 - Supports `EXACT_MATCH`, `CASE_INSENSITIVE`, and `REGEX`.
 - **Scope:** each selected node and its content down to the next page, main resource
   (`jmix:mainResource`) or folder. Selecting a page changes its title and the content of its areas,
-  never its sub-pages. A search result row lists exactly what this scope covers.
+  never its sub-pages. A folder covers only its own properties: each item in it is its own result.
+  A search result row lists exactly what this scope covers.
+- **One save per node:** a node that fails (missing right, lock, regular expression timeout) is reported
+  in `failedNodes` with its path, its partial changes are discarded, and the other nodes are kept.
+  Nodes with nothing to replace are listed in `unchangedNodes`. At most 200 nodes per call.
+- **Regular expressions** run for at most 2 seconds per value.
+- Each replacement logs one audit line (user, site, language, counts) at INFO.
 - **Text fields only:** non-protected `string` properties edited as small text, text area or rich text,
   without a choicelist, outside the system namespaces (`jcr:title` and `jcr:description` excepted).
   URLs (`j:url`), tags, segment definitions (`wem:*`), node names and choicelist keys are never changed;
@@ -100,11 +113,12 @@ graphql-java-annotations drops the `get` prefix of the Java methods: the fields 
 `nodeTypeProperties`.
 
 ### Query operations
-- `searchNodes(termToSearch, siteKey, language, filters, limit)`
+- `searchNodes(termToSearch, siteKey, language, filters, limit, offset, deepSearch)`
 - `nodeTypes(siteKey)`
 - `nodeTypeProperties(nodeType)`
-- `previewReplace(siteKey, nodeUuid, termToReplace, replacementTerm, language, propertiesToReplace, searchMode)`:
-  every property `replaceInNodes` would change for one node, without writing
+- `previewReplace(siteKey, nodeUuids, termToReplace, replacementTerm, language, propertiesToReplace, searchMode)`:
+  for each node, every property `replaceInNodes` would change, without writing; a node that cannot be
+  read gets an `error` instead of failing the call. The replace dialog shows this preview.
 
 ### Mutation operations
 - `replaceInNodes(siteKey, nodeUuids, termToReplace, replacementTerm, language, propertiesToReplace, searchMode)`
@@ -208,19 +222,25 @@ mutation ReplaceInNodesMutation(
 - User inputs are validated (`siteKey`, `language`, `nodeType`, property names, regex pattern).
 - HTML shown in previews/results is sanitized (scriptable elements and unsafe attributes removed).
 - The jContent app is shown only to users holding the permission on a site where the module is enabled.
-- Known limitation: a `REGEX` replacement runs the pattern without a time limit; the UI does not offer it.
+- A `REGEX` replacement stops after 2 seconds on one value (the node is reported as failed).
+- Argument errors (invalid site key, too many nodes, invalid regular expression) are returned with their
+  message.
 
 ## 6. Performance Notes
 
-- Search uses:
-  - Indexed full-text query first.
-  - Fallback traversal query if indexed query returns no usable result.
+- Search runs the indexed full-text query; the traversal of every node of the site runs only with
+  `deepSearch` and only when the index found nothing.
+- Each result reads its node, its translation node and its content down to the next page, main resource
+  or folder: sub-pages are not walked again under their parent.
 - Result processing is deduplicated per resolved content node.
 - Guardrails:
+  - `limit`: default 200, maximum 1000 rows per search
+  - 200 nodes per replacement and per preview
+  - 2 seconds per value for a regular expression
   - `MAX_SCAN_CANDIDATES = 250000`
   - `MAX_SEARCH_TERM_LENGTH = 512`
   - `MAX_FILTER_PROPERTIES = 500`
-- `limit` can be provided in GraphQL API, but UI currently does not send it.
+- The replace dialog reuses the rows of the search instead of searching again.
 
 ## 7. Date Filter Behavior
 

@@ -1,6 +1,6 @@
 import React, {useState, useCallback, useEffect} from 'react';
 import {useTranslation} from 'react-i18next';
-import {useMutation, useQuery} from '@apollo/client';
+import {useLazyQuery, useMutation} from '@apollo/client';
 import {
     Button,
     Input,
@@ -10,9 +10,9 @@ import {
     Loader
 } from '@jahia/moonstone';
 import PropTypes from 'prop-types';
-import {REPLACE_IN_NODES_MUTATION, SEARCH_NODES_QUERY} from '../SearchAndReplace.gql-queries';
+import {PREVIEW_REPLACE_QUERY, REPLACE_IN_NODES_MUTATION} from '../SearchAndReplace.gql-queries';
 import styles from '../SearchAndReplace.scss';
-import {escapeRegExp, isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
+import {isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
 
 const Dialog = ({isOpen, className, onClose, children}) => (
     isOpen ? (
@@ -74,7 +74,7 @@ DialogActions.propTypes = {
  * Replace Modal Component
  * Handles the replacement operation with preview and progress
  */
-export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, selectedNodes, searchTerm, onReplaceComplete}) => {
+export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, selectedNodes, selectedNodeData, searchTerm, onReplaceComplete}) => {
     const {t} = useTranslation('search-and-replace');
     const [replacementTerm, setReplacementTerm] = useState('');
     const [selectedProperties, setSelectedProperties] = useState(new Set());
@@ -82,15 +82,8 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
     const [step, setStep] = useState('input'); // Input, preview, progress, complete
     const [replaceResult, setReplaceResult] = useState(null);
 
-    // Get node details for preview
-    const {data: previewData, loading: previewLoading} = useQuery(SEARCH_NODES_QUERY, {
-        variables: {
-            termToSearch: searchTerm,
-            siteKey,
-            language: selectedLanguage,
-            filters: null
-        },
-        skip: !isOpen,
+    // The server computes the preview with the same rules as the replacement
+    const [loadPreview, {data: previewResult, loading: previewLoading, error: previewError}] = useLazyQuery(PREVIEW_REPLACE_QUERY, {
         fetchPolicy: 'network-only'
     });
 
@@ -112,10 +105,10 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
         }
     });
 
-    // Get nodes data for preview
-    const nodesData = Array.isArray(previewData?.searchAndReplace?.searchNodes?.nodes) ?
-        previewData.searchAndReplace.searchNodes.nodes.filter(node => node && node.uuid && selectedNodes.includes(node.uuid)) :
-        [];
+    // The selected rows, as the search returned them
+    const nodesData = React.useMemo(() => (selectedNodeData || []).filter(node => node && node.uuid), [selectedNodeData]);
+    const previews = previewResult?.searchAndReplace?.previewReplace || [];
+    const hasChanges = previews.some(preview => (preview.propertyPreviews || []).length > 0);
 
     // Collect all unique properties
     const allProperties = React.useMemo(() => {
@@ -180,14 +173,25 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
         });
     }, [siteKey, selectedNodes, searchTerm, replacementTerm, selectedLanguage, selectedProperties, replaceInNodes]);
 
-    // Preview replacement
-    const getPreviewText = useCallback((value, term, replacement) => {
-        if (!value || !term) {
-            return value;
-        }
+    const handlePreview = useCallback(() => {
+        loadPreview({
+            variables: {
+                siteKey,
+                nodeUuids: selectedNodes,
+                termToReplace: searchTerm,
+                replacementTerm,
+                language: selectedLanguage,
+                propertiesToReplace: Array.from(selectedProperties),
+                searchMode: 'CASE_INSENSITIVE'
+            }
+        });
+        setStep('preview');
+    }, [loadPreview, siteKey, selectedNodes, searchTerm, replacementTerm, selectedLanguage, selectedProperties]);
 
-        return value.replace(new RegExp(escapeRegExp(term), 'g'), () => replacement);
-    }, []);
+    const nodeLabel = useCallback(preview => {
+        const node = nodesData.find(item => item.uuid === preview.nodeUuid);
+        return node?.displayName || node?.name || preview.nodePath || preview.nodeUuid;
+    }, [nodesData]);
 
     const renderPreviewValue = useCallback((value, highlightTerm, valueClassName) => {
         if (isHtmlContent(value)) {
@@ -251,37 +255,33 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                                 />
                             </div>
 
-                            {previewLoading ? (
-                                <Loader/>
-                            ) : (
-                                <div className={styles.modalPropertiesSelection}>
-                                    <div className={styles.modalPropertiesHeader}>
-                                        <Typography variant="subheading" weight="bold">
-                                            {t('label.selectPropertiesToReplace')}
-                                        </Typography>
-                                        <CheckboxItem
-                                            id="replace-all-properties"
-                                            value="__all__"
-                                            label={t('label.selectAll')}
-                                            checked={selectAllProps}
-                                            onChange={(event, value, checked) => handleSelectAllProps(checked)}
-                                        />
-                                    </div>
-                                    <div className={styles.modalPropertiesList}>
-                                        {allProperties.map(property => (
-                                            <CheckboxItem
-                                                key={property.name}
-                                                id={`replace-property-${property.name}`}
-                                                value={property.name}
-                                                label={property.label}
-                                                checked={selectedProperties.has(property.name)}
-                                                isDisabled={selectAllProps}
-                                                onChange={(event, value, checked) => handlePropertyToggle(value, checked)}
-                                            />
-                                        ))}
-                                    </div>
+                            <div className={styles.modalPropertiesSelection}>
+                                <div className={styles.modalPropertiesHeader}>
+                                    <Typography variant="subheading" weight="bold">
+                                        {t('label.selectPropertiesToReplace')}
+                                    </Typography>
+                                    <CheckboxItem
+                                        id="replace-all-properties"
+                                        value="__all__"
+                                        label={t('label.selectAll')}
+                                        checked={selectAllProps}
+                                        onChange={(event, value, checked) => handleSelectAllProps(checked)}
+                                    />
                                 </div>
-                            )}
+                                <div className={styles.modalPropertiesList}>
+                                    {allProperties.map(property => (
+                                        <CheckboxItem
+                                            key={property.name}
+                                            id={`replace-property-${property.name}`}
+                                            value={property.name}
+                                            label={property.label}
+                                            checked={selectedProperties.has(property.name)}
+                                            isDisabled={selectAllProps}
+                                            onChange={(event, value, checked) => handlePropertyToggle(value, checked)}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </DialogContent>
                         <DialogActions>
                             <Button
@@ -293,7 +293,7 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                                 label={t('label.preview')}
                                 color="accent"
                                 isDisabled={!replacementTerm.trim() || selectedProperties.size === 0}
-                                onClick={() => setStep('preview')}
+                                onClick={handlePreview}
                             />
                         </DialogActions>
                     </>
@@ -310,41 +310,42 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                             </DialogContentText>
 
                             <div className={styles.modalPreviewSection}>
-                                {nodesData.slice(0, 3).map(node => (
-                                    <div key={node.uuid} className={styles.modalPreviewNode}>
-                                        <Typography variant="subheading" weight="bold">
-                                            {node.displayName || node.name}
-                                        </Typography>
-                                        {(node.matchingProperties || [])
-                                            .filter(prop => prop && prop.name && prop.replaceable && (selectAllProps || selectedProperties.has(prop.name)))
-                                            .map(prop => (
-                                                <div key={`${node.uuid}-${prop.name}`} className={styles.modalPreviewProperty}>
+                                {previewLoading && <Loader/>}
+                                {previewError && (
+                                    <Typography variant="body" color="danger">{previewError.message}</Typography>
+                                )}
+                                {!previewLoading && !previewError && !hasChanges && (
+                                    <Typography variant="body">{t('label.previewNothing')}</Typography>
+                                )}
+                                {!previewLoading && previews
+                                    .filter(preview => preview.error || (preview.propertyPreviews || []).length > 0)
+                                    .map(preview => (
+                                        <div key={preview.nodeUuid} className={styles.modalPreviewNode}>
+                                            <Typography variant="subheading" weight="bold">
+                                                {nodeLabel(preview)}
+                                            </Typography>
+                                            {preview.error && (
+                                                <Typography variant="caption" color="danger">{preview.error}</Typography>
+                                            )}
+                                            {(preview.propertyPreviews || []).map(prop => (
+                                                <div key={`${preview.nodeUuid}-${prop.label}`} className={styles.modalPreviewProperty}>
                                                     <Typography variant="caption" weight="bold">
                                                         {prop.label || prop.name}
                                                     </Typography>
                                                     <div className={styles.modalPreviewValues}>
                                                         <div className={styles.modalPreviewValueItem}>
                                                             <Chip label={t('label.before')} size="small"/>
-                                                            {renderPreviewValue(prop.value, searchTerm, styles.modalOldValue)}
+                                                            {renderPreviewValue(prop.currentValue, searchTerm, styles.modalOldValue)}
                                                         </div>
                                                         <div className={styles.modalPreviewValueItem}>
                                                             <Chip label={t('label.after')} size="small" color="accent"/>
-                                                            {renderPreviewValue(
-                                                                getPreviewText(prop.value, searchTerm, replacementTerm),
-                                                                replacementTerm || searchTerm,
-                                                                styles.modalNewValue
-                                                            )}
+                                                            {renderPreviewValue(prop.newValue, replacementTerm || searchTerm, styles.modalNewValue)}
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
-                                    </div>
-                                ))}
-                                {nodesData.length > 3 && (
-                                    <Typography variant="caption">
-                                        {t('label.andMoreNodes', {count: nodesData.length - 3})}
-                                    </Typography>
-                                )}
+                                        </div>
+                                    ))}
                             </div>
                         </DialogContent>
                         <DialogActions>
@@ -356,6 +357,7 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                             <Button
                                 label={t('label.executeReplace')}
                                 color="accent"
+                                isDisabled={previewLoading || !hasChanges}
                                 onClick={handleExecuteReplace}
                             />
                         </DialogActions>
@@ -380,33 +382,26 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
             case 'complete': {
                 const failedNodes = replaceResult?.failedNodes || [];
                 const successfulNodes = replaceResult?.successfulNodes || [];
+                const unchangedNodes = replaceResult?.unchangedNodes || [];
                 const errors = replaceResult?.errors || [];
                 const hasErrors = failedNodes.length > 0;
-                const allSuccess = successfulNodes.length === selectedNodes.length;
+                const allSuccess = !hasErrors && successfulNodes.length > 0;
+                let headline = {label: t('label.replaceNothing'), color: 'default'};
+                if (allSuccess) {
+                    headline = {label: t('label.replaceSuccess'), color: 'success'};
+                } else if (hasErrors && successfulNodes.length > 0) {
+                    headline = {label: t('label.replacePartialSuccess'), color: 'warning'};
+                } else if (hasErrors) {
+                    headline = {label: t('label.replaceError'), color: 'danger'};
+                }
 
                 return (
                     <>
                         <DialogContent>
                             <div className={styles.modalCompleteSection}>
-                                {allSuccess ? (
-                                    <>
-                                        <Typography variant="heading" color="success">
-                                            {t('label.replaceSuccess')}
-                                        </Typography>
-                                    </>
-                                ) : hasErrors ? (
-                                    <>
-                                        <Typography variant="heading" color="warning">
-                                            {t('label.replacePartialSuccess')}
-                                        </Typography>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Typography variant="heading" color="danger">
-                                            {t('label.replaceError')}
-                                        </Typography>
-                                    </>
-                                )}
+                                <Typography variant="heading" color={headline.color}>
+                                    {headline.label}
+                                </Typography>
 
                                 <div className={styles.modalResultSummary}>
                                     <Chip
@@ -417,6 +412,12 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                                         label={`${replaceResult?.totalPropertiesUpdated || 0} ${t('label.propertiesUpdated')}`}
                                         color="accent"
                                     />
+                                    {unchangedNodes.length > 0 && (
+                                        <Chip
+                                            label={`${unchangedNodes.length} ${t('label.unchanged')}`}
+                                            color="default"
+                                        />
+                                    )}
                                     {hasErrors && (
                                         <Chip
                                             label={`${failedNodes.length} ${t('label.failed')}`}
@@ -484,6 +485,7 @@ ReplaceModal.propTypes = {
     siteKey: PropTypes.string.isRequired,
     selectedLanguage: PropTypes.string.isRequired,
     selectedNodes: PropTypes.array.isRequired,
+    selectedNodeData: PropTypes.array,
     searchTerm: PropTypes.string.isRequired,
     onReplaceComplete: PropTypes.func.isRequired
 };

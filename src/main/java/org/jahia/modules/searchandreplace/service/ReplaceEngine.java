@@ -126,6 +126,9 @@ public final class ReplaceEngine {
             replaceProperty(node, node.getProperty(name), field.getValue(), request, write, changes);
         }
 
+        if (!ReplaceScope.coversChildrenOf(node)) {
+            return;
+        }
         JCRNodeIteratorWrapper children = node.getNodes();
         while (children.hasNext()) {
             JCRNodeWrapper child = (JCRNodeWrapper) children.nextNode();

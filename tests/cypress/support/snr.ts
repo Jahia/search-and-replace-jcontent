@@ -84,30 +84,33 @@ export function assertRefusedByField(body: GqlBody, field: string): void {
     expect(body.errors![0].path, 'refused by the field resolver, past the API filter').to.deep.eq(['searchAndReplace', field]);
 }
 
-export const SEARCH = `query Search($siteKey: String!, $term: String!, $language: String!) {
+export const SEARCH = `query Search($siteKey: String!, $term: String!, $language: String!, $limit: Int, $offset: Int,
+        $deepSearch: Boolean) {
     searchAndReplace {
-        searchNodes(termToSearch: $term, siteKey: $siteKey, language: $language) {
-            totalCount
+        searchNodes(termToSearch: $term, siteKey: $siteKey, language: $language, limit: $limit, offset: $offset,
+                deepSearch: $deepSearch) {
+            totalCount truncated
             nodes { uuid path matchingProperties { name label value replaceable } }
         }
     }
 }`;
 
 export const REPLACE = `mutation Replace($siteKey: String!, $uuids: [String!]!, $term: String!, $replacement: String!,
-        $language: String!, $properties: [String!]) {
+        $language: String!, $properties: [String!], $mode: SearchAndReplaceSearchMode = CASE_INSENSITIVE) {
     searchAndReplace {
         replaceInNodes(siteKey: $siteKey, nodeUuids: $uuids, termToReplace: $term, replacementTerm: $replacement,
-                language: $language, propertiesToReplace: $properties, searchMode: CASE_INSENSITIVE) {
-            successfulNodes failedNodes totalPropertiesUpdated errors { nodeUuid message }
+                language: $language, propertiesToReplace: $properties, searchMode: $mode) {
+            successfulNodes unchangedNodes failedNodes totalPropertiesUpdated errors { nodeUuid nodePath message }
         }
     }
 }`;
 
-export const PREVIEW = `query Preview($siteKey: String!, $uuid: String!, $term: String!, $replacement: String!, $language: String!) {
+export const PREVIEW = `query Preview($siteKey: String!, $uuids: [String!]!, $term: String!, $replacement: String!,
+        $language: String!) {
     searchAndReplace {
-        previewReplace(siteKey: $siteKey, nodeUuid: $uuid, termToReplace: $term, replacementTerm: $replacement,
+        previewReplace(siteKey: $siteKey, nodeUuids: $uuids, termToReplace: $term, replacementTerm: $replacement,
                 language: $language) {
-            nodePath propertyPreviews { label currentValue newValue }
+            nodeUuid nodePath error propertyPreviews { label currentValue newValue }
         }
     }
 }`;

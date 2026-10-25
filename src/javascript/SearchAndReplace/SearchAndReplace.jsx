@@ -8,6 +8,7 @@ import {
     Dropdown,
     Button,
     Chip,
+    CheckboxItem,
     Loader
 } from '@jahia/moonstone';
 import PropTypes from 'prop-types';
@@ -16,6 +17,9 @@ import {SearchFilters} from './components/SearchFilters';
 import {ResultsTable} from './components/ResultsTable';
 import {ReplaceModal} from './components/ReplaceModal';
 import styles from './SearchAndReplace.scss';
+
+// Rows asked from the server per search; the server caps the batch of a replacement at the same size.
+const SEARCH_RESULT_LIMIT = 200;
 
 /**
  * Main Search and Replace Component
@@ -35,6 +39,7 @@ export const SearchAndReplace = ({siteKey}) => {
     const [replaceModalOpen, setReplaceModalOpen] = useState(false);
     const [searchExecuted, setSearchExecuted] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState((i18n?.language || 'en').split('-')[0]);
+    const [deepSearch, setDeepSearch] = useState(false);
 
     const sanitizeFiltersPayload = useCallback(rawFilters => {
         if (!rawFilters || typeof rawFilters !== 'object') {
@@ -130,7 +135,9 @@ export const SearchAndReplace = ({siteKey}) => {
             termToSearch: currentSearchTerm,
             siteKey,
             language: selectedLanguage,
-            filters: Object.keys(normalizedFilters).length > 0 ? normalizedFilters : null
+            filters: Object.keys(normalizedFilters).length > 0 ? normalizedFilters : null,
+            limit: SEARCH_RESULT_LIMIT,
+            deepSearch
         },
         skip: !currentSearchTerm || currentSearchTerm.trim() === '',
         fetchPolicy: 'network-only'
@@ -329,6 +336,7 @@ export const SearchAndReplace = ({siteKey}) => {
                                 onChange={(event, item) => {
                                     if (item?.value) {
                                         setSelectedLanguage(item.value);
+                                        setSelectedNodes([]);
                                     }
                                 }}
                             />
@@ -338,6 +346,18 @@ export const SearchAndReplace = ({siteKey}) => {
                                 size="big"
                                 isDisabled={!searchTerm.trim()}
                                 onClick={handleSearch}
+                            />
+                        </div>
+                        <div className={styles.searchOptions}>
+                            <CheckboxItem
+                                id="search-and-replace-deep-search"
+                                value="deepSearch"
+                                label={t('label.deepSearch')}
+                                checked={deepSearch}
+                                onChange={(event, value, checked) => {
+                                    setDeepSearch(checked);
+                                    setSelectedNodes([]);
+                                }}
                             />
                         </div>
                         {currentSearchTerm && (
@@ -481,6 +501,7 @@ export const SearchAndReplace = ({siteKey}) => {
                         selectedLanguage={selectedLanguage}
                         siteKey={siteKey}
                         selectedNodes={selectedNodes}
+                        selectedNodeData={filteredNodes.filter(node => selectedNodes.includes(node.uuid))}
                         searchTerm={currentSearchTerm}
                         onClose={() => setReplaceModalOpen(false)}
                         onReplaceComplete={handleReplaceComplete}

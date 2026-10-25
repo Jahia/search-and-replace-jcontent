@@ -1,7 +1,9 @@
 package org.jahia.modules.searchandreplace.graphql.model;
 
+import graphql.annotations.annotationTypes.GraphQLDescription;
 import graphql.annotations.annotationTypes.GraphQLField;
 import graphql.annotations.annotationTypes.GraphQLName;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -14,6 +16,7 @@ public class GqlReplaceResult {
     private List<String> failedNodes;
     private int totalPropertiesUpdated;
     private List<GqlReplaceError> errors;
+    private List<String> unchangedNodes = new ArrayList<>();
 
     public GqlReplaceResult() {
     }
@@ -32,6 +35,16 @@ public class GqlReplaceResult {
 
     public void setSuccessfulNodes(List<String> successfulNodes) {
         this.successfulNodes = successfulNodes;
+    }
+
+    @GraphQLField
+    @GraphQLDescription("Selected nodes that were readable and writable but had nothing to replace")
+    public List<String> getUnchangedNodes() {
+        return unchangedNodes;
+    }
+
+    public void setUnchangedNodes(List<String> unchangedNodes) {
+        this.unchangedNodes = unchangedNodes;
     }
 
     @GraphQLField

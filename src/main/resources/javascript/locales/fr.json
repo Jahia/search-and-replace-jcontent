@@ -42,7 +42,7 @@
     "matchesFound": "Correspondances Trouvées",
     "selected": "{{count}} sélectionnés",
     "resultsFound": "{{count}} nœuds trouvés contenant \"{{term}}\"",
-    "resultsTruncated": "Résultats tronqués pour des raisons de performance",
+    "resultsTruncated": "Seuls les 200 premiers résultats sont affichés : affinez la recherche ou les filtres pour voir les autres",
     "resultsTable": "Résultats de Recherche",
     "name": "Nom",
     "path": "Chemin",
@@ -84,7 +84,11 @@
     "failed": "Échoué",
     "errors": "Erreurs",
     "activeFilters": "{{count}} filtres actifs",
-    "noPermission": "Vous n'avez pas la permission d'utiliser Rechercher et remplacer sur ce site. Demandez la permission \"searchAndReplace\" à un administrateur du site."
+    "noPermission": "Vous n'avez pas la permission d'utiliser Rechercher et remplacer sur ce site. Demandez la permission \"searchAndReplace\" à un administrateur du site.",
+    "deepSearch": "Trouver aussi des parties de mots (plus lent : lit tous les contenus du site quand l'index ne trouve rien)",
+    "previewNothing": "Rien ne changera : le terme n'apparaît qu'à des endroits qui ne sont pas remplacés (propriétés en lecture seule, autres accents ou mots coupés par la mise en forme).",
+    "unchanged": "Inchangés",
+    "replaceNothing": "Rien n'a été remplacé"
   },
   "accordion": {
     "title": "Outils de contenu"

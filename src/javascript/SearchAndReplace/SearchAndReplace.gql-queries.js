@@ -4,9 +4,9 @@ import gql from 'graphql-tag';
  * Query to search for nodes containing a specific term
  */
 export const SEARCH_NODES_QUERY = gql`
-    query SearchNodesQuery($termToSearch: String!, $siteKey: String!, $language: String!, $filters: InputSearchAndReplaceSearchFiltersInput) {
+    query SearchNodesQuery($termToSearch: String!, $siteKey: String!, $language: String!, $filters: InputSearchAndReplaceSearchFiltersInput, $limit: Int, $deepSearch: Boolean) {
         searchAndReplace {
-            searchNodes(termToSearch: $termToSearch, siteKey: $siteKey, language: $language, filters: $filters) {
+            searchNodes(termToSearch: $termToSearch, siteKey: $siteKey, language: $language, filters: $filters, limit: $limit, deepSearch: $deepSearch) {
                 totalCount
                 truncated
                 nodes {
@@ -89,6 +89,8 @@ export const GET_SITE_LANGUAGES_QUERY = gql`
     query GetSiteLanguages($workspace: Workspace!, $scope: String!) {
         jcr(workspace: $workspace) {
             nodeByPath(path: $scope) {
+                uuid
+                workspace
                 languages: property(name: "j:languages") {
                     values
                 }
@@ -121,6 +123,7 @@ export const REPLACE_IN_NODES_MUTATION = gql`
                 searchMode: $searchMode
             ) {
                 successfulNodes
+                unchangedNodes
                 failedNodes
                 totalPropertiesUpdated
                 errors {
@@ -134,12 +137,12 @@ export const REPLACE_IN_NODES_MUTATION = gql`
 `;
 
 /**
- * Query to preview, without writing, what replaceInNodes would change for one node
+ * Query to preview, without writing, what replaceInNodes would change for each selected node
  */
 export const PREVIEW_REPLACE_QUERY = gql`
     query PreviewReplaceQuery(
         $siteKey: String!
-        $nodeUuid: String!
+        $nodeUuids: [String!]!
         $termToReplace: String!
         $replacementTerm: String!
         $language: String!
@@ -149,7 +152,7 @@ export const PREVIEW_REPLACE_QUERY = gql`
         searchAndReplace {
             previewReplace(
                 siteKey: $siteKey
-                nodeUuid: $nodeUuid
+                nodeUuids: $nodeUuids
                 termToReplace: $termToReplace
                 replacementTerm: $replacementTerm
                 language: $language
@@ -158,6 +161,7 @@ export const PREVIEW_REPLACE_QUERY = gql`
             ) {
                 nodeUuid
                 nodePath
+                error
                 propertyPreviews {
                     name
                     currentValue
