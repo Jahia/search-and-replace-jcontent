@@ -39,5 +39,10 @@
 - Search stays accent- and markup-insensitive while replace is not: such matches are shown read-only
   rather than replaced with a guess.
 - The full scan of a site runs only on request (`deepSearch`).
-- Open: create a version before writing (team decision); move the repository to the Jahia org and
-  release from CI.
+- 2026-10-25: the repository moved to the Jahia org as `Jahia/search-and-replace-jcontent`.
+  `Jahia/search-and-replace` (private, 2014-2022) holds the legacy module
+  `org.jahia.modules:search-and-replace`: same module id, so the two cannot run on one Jahia.
+  Renaming this module's id would break installed sites (permission path, site activation): a
+  product decision, not taken.
+- Open: create a version before writing (team decision); Jahia's standard CI (chachalog, signed
+  releases) and the release CI account's access (repo admin); `@Jahia/jahians` Maintain (org admin).

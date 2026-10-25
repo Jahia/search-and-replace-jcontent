@@ -1,5 +1,11 @@
 # Search And Replace (Jahia Module)
 
+Repository: [Jahia/search-and-replace-jcontent](https://github.com/Jahia/search-and-replace-jcontent)
+(moved from `smonier/search-and-replace` on 2026-10-25). The module id stays `search-and-replace`;
+the repository has another name because `Jahia/search-and-replace` holds the legacy module
+`org.jahia.modules:search-and-replace`, which has the same module id: the two cannot be installed on
+the same Jahia.
+
 Search-and-replace module for Jahia Content Editor tools.
 
 It provides:

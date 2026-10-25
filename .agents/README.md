@@ -3,6 +3,9 @@
 Jahia OSGi module: a jContent app (React 18 UI extension, webpack + Module Federation) and a GraphQL
 extension (Java) to find a term in a site and replace it in the items the user selects.
 
+Repository `Jahia/search-and-replace-jcontent` (moved from `smonier/search-and-replace` on 2026-10-25;
+`Jahia/search-and-replace` is Jahia's legacy module with the same module id, see `context/architecture.md`).
+
 Generic Jahia knowledge is not repeated here: read the AIStartupKit harness first
 (`CLAUDE.md`, skills `jahia-osgi-ui-extension`, `jahia-java-security`, `jahia-java-jcr`,
 `jahia-dev-cypress`, `jahia-review-java`). This folder holds what is specific to this module.
