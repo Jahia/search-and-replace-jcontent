@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## 1.1.0 (2026-10-25)
 
 ### Security
 
@@ -60,6 +60,8 @@
   Java 11); `mise.toml` pins JDK 17, Maven 3.8 and Node 22.
 - Jahia's archive repositories declared (fresh CI runners cannot resolve the 8.2 parent without them).
 - Babel targets the default browser list instead of IE 10 and Safari 7.
+- GitHub Actions workflow `build.yml`: build and unit tests on every pull request and push to `main`,
+  toolchain from `mise.toml` (JDK 17, Maven 3.8), bundle kept as an artifact.
 - Removed `tmp/`, `schema.graphql` and the three stub documents; added `.agents/` (architecture,
   decisions, testing).
 

@@ -295,6 +295,12 @@ yarn build
 mvn -q -DskipTests compile
 ```
 
+### Continuous integration
+
+`.github/workflows/build.yml` builds the module and runs the unit tests on every pull request (stacked
+ones included) and on every push to `main`, with the toolchain of `mise.toml`, and keeps the bundle as a
+build artifact for 14 days. The Cypress suite needs a running Jahia and runs locally (below).
+
 ### Tests
 
 - Unit tests (`src/test/java`, run by `mvn install`): plain and rich text replacement, system names.
