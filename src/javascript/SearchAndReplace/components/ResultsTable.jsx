@@ -51,29 +51,60 @@ MatchValue.propTypes = {
     keyPrefix: PropTypes.string.isRequired
 };
 
+// Read-only matches shown in a row before "Show all"
+const VISIBLE_READ_ONLY = 1;
+
+const reasonKey = match => (match.notReplaceableReason === 'DIFFERENT_SPELLING' ?
+    'label.reasonDifferentSpelling' :
+    'label.reasonNotATextField');
+
+/** Tells whether a search result holds at least one property the replacement changes. */
+export const isReplaceableNode = node => (node?.matchingProperties || []).some(match => match && match.replaceable);
+
 /**
- * The matching properties of one result: the first ones, then all on demand. A property that the
- * replacement would not change is marked read-only.
+ * The matching properties of one result: first those the replacement changes, then, apart and
+ * muted, those it never changes with the reason. The first ones show, the rest on demand.
  */
 const MatchesCell = ({node, searchTerm}) => {
     const {t} = useTranslation('search-and-replace');
     const [showAll, setShowAll] = useState(false);
     const matches = (node.matchingProperties || []).filter(match => match && match.name);
-    const visible = showAll ? matches : matches.slice(0, VISIBLE_MATCHES);
+    const replaceable = matches.filter(match => match.replaceable);
+    const readOnly = matches.filter(match => !match.replaceable);
+    const visibleReplaceable = showAll ? replaceable : replaceable.slice(0, VISIBLE_MATCHES);
+    const visibleReadOnly = showAll ? readOnly : readOnly.slice(0, VISIBLE_READ_ONLY);
+    const hasMore = replaceable.length > VISIBLE_MATCHES || readOnly.length > VISIBLE_READ_ONLY;
 
     return (
         <div className={styles.matches}>
-            {visible.map((match, index) => (
+            {replaceable.length === 0 && (
+                <Chip label={t('label.nothingToReplace')} color="warning"/>
+            )}
+            {visibleReplaceable.map((match, index) => (
                 // eslint-disable-next-line react/no-array-index-key
-                <div key={`${match.label}-${index}`} className={styles.match}>
-                    <div className={styles.matchHeader}>
-                        <Typography variant="caption" weight="bold">{match.label || match.name}</Typography>
-                        {!match.replaceable && <Chip label={t('label.readOnly')} color="warning"/>}
-                    </div>
-                    <MatchValue value={match.value} searchTerm={searchTerm} keyPrefix={`${node.uuid}-${index}`}/>
+                <div key={`r-${match.label}-${index}`} className={styles.match}>
+                    <Typography variant="caption" weight="bold">{match.label || match.name}</Typography>
+                    <MatchValue value={match.value} searchTerm={searchTerm} keyPrefix={`${node.uuid}-r${index}`}/>
                 </div>
             ))}
-            {matches.length > VISIBLE_MATCHES && (
+            {readOnly.length > 0 && (
+                <div className={styles.readOnlyMatches} role="group" aria-label={t('label.notReplacedHeading', {count: readOnly.length})}>
+                    <Typography variant="caption" weight="bold" className={styles.readOnlyHeading}>
+                        {t('label.notReplacedHeading', {count: readOnly.length})}
+                    </Typography>
+                    {visibleReadOnly.map((match, index) => (
+                        // eslint-disable-next-line react/no-array-index-key
+                        <div key={`o-${match.label}-${index}`} className={styles.match}>
+                            <div className={styles.matchHeader}>
+                                <Typography variant="caption" weight="bold">{match.label || match.name}</Typography>
+                                <Typography variant="caption" className={styles.reason}>{t(reasonKey(match))}</Typography>
+                            </div>
+                            <MatchValue value={match.value} searchTerm={searchTerm} keyPrefix={`${node.uuid}-o${index}`}/>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {hasMore && (
                 <Button
                     variant="ghost"
                     size="small"
@@ -100,6 +131,12 @@ MatchesCell.propTypes = {
 export const ResultsTable = ({nodes, searchTerm, selectedLanguage, siteKey, selectedNodes, onSelectionChange}) => {
     const {t} = useTranslation('search-and-replace');
     const rows = useMemo(() => nodes.filter(node => node && node.uuid), [nodes]);
+    const replaceableIds = useMemo(() => new Set(rows.filter(isReplaceableNode).map(node => node.uuid)), [rows]);
+    // DataTable cannot disable one checkbox: a row with nothing to replace is greyed out and dropped here
+    const handleSelectionChange = useCallback(
+        selection => onSelectionChange(selection.filter(id => replaceableIds.has(id))),
+        [onSelectionChange, replaceableIds]
+    );
     const formatDate = useCallback(value => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : ''), []);
 
     const columns = useMemo(() => [
@@ -171,7 +208,10 @@ export const ResultsTable = ({nodes, searchTerm, selectedLanguage, siteKey, sele
                 defaultItemsPerPage={25}
                 itemsPerPageOptions={[25, 50, 100, 200]}
                 i18n={{itemsPerPage: t('label.itemsPerPage'), of: t('label.of')}}
-                onChangeSelection={onSelectionChange}
+                rowProps={({data}) => (replaceableIds.has(data.uuid) ?
+                    {} :
+                    {'data-snr-replaceable': 'false', title: t('label.nothingToReplaceRow')})}
+                onChangeSelection={handleSelectionChange}
             />
         </div>
     );

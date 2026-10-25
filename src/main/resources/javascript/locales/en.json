@@ -97,7 +97,14 @@
     "showFewerMatches": "Show fewer matches",
     "openParentShort": "Open the parent in jContent",
     "itemsPerPage": "Rows per page",
-    "of": "of"
+    "of": "of",
+    "notReplacedHeading": "Not replaced ({{count}})",
+    "reasonNotATextField": "not a text field (system property, link, list value)",
+    "reasonDifferentSpelling": "only inside markup, with other accents or split by formatting",
+    "nothingToReplace": "Nothing to replace",
+    "nothingToReplaceRow": "Nothing in this item can be replaced: it cannot be selected",
+    "notUpdatedHeading": "Not updated ({{count}})",
+    "notUpdatedDescription": "These matches are shown for information: the replacement does not change them."
   },
   "accordion": {
     "title": "Content Tools"

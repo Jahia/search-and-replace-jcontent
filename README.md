@@ -42,8 +42,12 @@ It provides:
 - **Deep search** (`deepSearch`, the "Also find parts of words" box): when the index finds nothing,
   scan every node of the site. It finds parts of words; it is slow on large sites, so it runs only on
   request.
-- A match is **replaceable** when it is a text field and the replacement would change it. A term written
-  with other accents ("cafe" for "Café") or split by formatting is found but marked read-only.
+- A match is **replaceable** when it is a text field and the replacement would change it. Other matches
+  carry `notReplaceableReason`: `NOT_A_TEXT_FIELD` (system property, link, list value) or
+  `DIFFERENT_SPELLING` (only inside markup, with other accents, "cafe" for "Café", or split by
+  formatting). The UI shows them apart and muted, with the reason, below the replaceable ones; an item
+  with nothing replaceable is greyed out and cannot be selected, and the replace dialog lists these
+  matches under "Not updated", without a checkbox.
 
 ### Replace
 - Supports `EXACT_MATCH`, `CASE_INSENSITIVE`, and `REGEX`.

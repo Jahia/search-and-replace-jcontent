@@ -28,6 +28,10 @@ describe('Search and replace - jContent app', () => {
                 ]}
             ]
         });
+        addNodeTree(`/sites/${siteKey}/contents`, {
+            name: 'snr', type: 'jnt:contentFolder',
+            children: [{name: 'accent', primaryNodeType: 'jnt:text', properties: [{name: 'text', language: 'en', value: 'Le Café du coin'}]}]
+        });
         createTestUser(admin, `/sites/${siteKey}`, ['site-administrator']);
     });
 
@@ -73,5 +77,19 @@ describe('Search and replace - jContent app', () => {
             // same margin on both sides; the right one may add a scrollbar
             expect(right - left, 'right margin minus left margin').to.be.within(0, 20);
         });
+    });
+
+    it('shows matches that cannot be replaced apart, and does not let their item be selected', () => {
+        cy.login(admin.username, admin.password);
+        cy.visit(`/jahia/jcontent/${siteKey}/en/contentToolsAccordion/SearchAndReplaceAction`);
+        cy.get('input[placeholder="Enter text to search for..."]').should('be.visible').type('cafe{enter}');
+        cy.contains('tr', 'Le Café du coin').as('row');
+        cy.get('@row').should('have.attr', 'data-snr-replaceable', 'false');
+        cy.get('@row').contains('Nothing to replace').should('be.visible');
+        cy.get('@row').contains('Not replaced (1)').should('be.visible');
+        cy.get('@row').contains('only inside markup, with other accents or split by formatting').should('be.visible');
+        cy.get('@row').find('input[type=checkbox]').click({force: true});
+        cy.get('@row').find('input[type=checkbox]').should('not.be.checked');
+        cy.contains('button', /Replace in/).should('not.exist');
     });
 });

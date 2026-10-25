@@ -88,6 +88,7 @@ describe('Search and replace - search bounds and batches', () => {
             const row = data.searchAndReplace.searchNodes.nodes.find((n: {path: string}) => n.path === `${folder}/accent`);
             expect(row, 'search folds accents').to.exist;
             expect(row.matchingProperties[0].replaceable, 'replace does not fold accents').to.eq(false);
+            expect(row.matchingProperties[0].notReplaceableReason).to.eq('DIFFERENT_SPELLING');
         });
         uuidOf(`${folder}/accent`).then(uuid => {
             gqlOk(admin, PREVIEW, {siteKey, uuids: [uuid], term: 'cafe', replacement: 'bar', language: 'en'})

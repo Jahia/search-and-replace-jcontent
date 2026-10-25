@@ -139,6 +139,12 @@ $spacing-unit: 6px;
         padding-bottom: $spacing-unit;
         align-items: flex-start;
     }
+
+    // A row with nothing the replacement changes: its checkbox is greyed out and does not respond
+    :global(tbody tr[data-snr-replaceable='false'] td:first-child) {
+        opacity: 0.35;
+        pointer-events: none;
+    }
 }
 
 .wrap {
@@ -209,6 +215,32 @@ $spacing-unit: 6px;
     margin: 0;
 }
 
+// Matches the replacement never changes: apart, below a rule, muted
+.readOnlyMatches {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-unit;
+    margin-top: 2px;
+    padding: $spacing-unit;
+    border-top: 1px dashed var(--color-gray, #b4b4b4);
+    border-radius: 2px;
+    background: var(--color-gray_light40, #f5f5f5);
+    color: var(--color-gray_dark, #6b6b6b);
+
+    .highlight {
+        background-color: var(--color-gray_light, #dadada);
+    }
+}
+
+.readOnlyHeading {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.reason {
+    font-style: italic;
+}
+
 .highlight {
     background-color: var(--color-warning, #f2b600);
     padding: 0 2px;
@@ -264,6 +296,25 @@ $spacing-unit: 6px;
     :global(.moonstone-checkboxItem + .moonstone-checkboxItem) {
         margin-top: 0;
     }
+}
+
+.modalReadOnly {
+    margin-top: $spacing-unit * 3;
+    padding: $spacing-unit * 2;
+    border: 1px dashed var(--color-gray, #b4b4b4);
+    border-radius: $spacing-unit;
+    background: var(--color-gray_light40, #f5f5f5);
+    color: var(--color-gray_dark, #6b6b6b);
+}
+
+.modalReadOnlyList {
+    display: grid;
+    gap: $spacing-unit;
+    margin: $spacing-unit 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 160px;
+    overflow-y: auto;
 }
 
 .modalPreviewSection {

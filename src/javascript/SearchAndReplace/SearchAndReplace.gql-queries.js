@@ -25,6 +25,7 @@ export const SEARCH_NODES_QUERY = gql`
                         value
                         label
                         replaceable
+                        notReplaceableReason
                     }
                 }
             }

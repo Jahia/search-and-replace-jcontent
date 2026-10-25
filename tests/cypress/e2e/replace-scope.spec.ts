@@ -77,6 +77,8 @@ describe('Search and replace - scope and text fields', () => {
             expect(rich, 'the rich text is a result').to.exist;
             const flags = Object.fromEntries(rich.matchingProperties.map((m: {name: string; replaceable: boolean}) => [m.name, m.replaceable]));
             expect(flags, 'text is replaceable, tags are not').to.deep.eq({text: true, 'j:tagList': false});
+            const tags = rich.matchingProperties.find((m: {name: string}) => m.name === 'j:tagList');
+            expect(tags.notReplaceableReason).to.eq('NOT_A_TEXT_FIELD');
         });
     });
 

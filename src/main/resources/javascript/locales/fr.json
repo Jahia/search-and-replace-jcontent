@@ -97,7 +97,14 @@
     "showFewerMatches": "Afficher moins de correspondances",
     "openParentShort": "Ouvrir le parent dans jContent",
     "itemsPerPage": "Lignes par page",
-    "of": "sur"
+    "of": "sur",
+    "notReplacedHeading": "Non remplacé ({{count}})",
+    "reasonNotATextField": "pas un champ texte (propriété système, lien, valeur de liste)",
+    "reasonDifferentSpelling": "seulement dans le balisage, avec d'autres accents ou coupé par la mise en forme",
+    "nothingToReplace": "Rien à remplacer",
+    "nothingToReplaceRow": "Rien dans ce contenu ne peut être remplacé : il ne peut pas être sélectionné",
+    "notUpdatedHeading": "Non modifié ({{count}})",
+    "notUpdatedDescription": "Ces correspondances sont affichées pour information : le remplacement ne les modifie pas."
   },
   "accordion": {
     "title": "Outils de contenu"

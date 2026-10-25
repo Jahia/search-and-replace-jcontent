@@ -43,6 +43,10 @@
   page), the matching properties in their row with "Show all", names clamped to two lines, the content
   type's display name instead of its technical name, rows that grow with their content.
 - The replace dialog is a Moonstone `Modal` (Escape, focus kept inside, portal).
+- Matches the replacement does not change are shown apart and muted, with the reason
+  (`notReplaceableReason`: not a text field, or different spelling), below the replaceable ones; an item
+  with nothing replaceable cannot be selected; the dialog lists them under "Not updated", without a
+  checkbox.
 - Wording for editors ("items", "content type") instead of "nodes"; one key per singular and plural;
   section headings, labels on the search field and the language list, alerts and statuses announced.
 

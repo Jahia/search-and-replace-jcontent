@@ -89,6 +89,18 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
         return Array.from(propsMap.entries()).map(([name, label]) => ({name, label}));
     }, [nodesData]);
 
+    // Matches the replacement never changes, listed apart and never selectable
+    const readOnlyMatches = React.useMemo(() => nodesData.flatMap(node => (node.matchingProperties || [])
+        .filter(prop => prop && prop.name && !prop.replaceable)
+        .map(prop => ({
+            key: `${node.uuid}-${prop.label}`,
+            node: node.displayName || node.name,
+            label: prop.label || prop.name,
+            reason: prop.notReplaceableReason === 'DIFFERENT_SPELLING' ?
+                'label.reasonDifferentSpelling' :
+                'label.reasonNotATextField'
+        }))), [nodesData]);
+
     // Initialize selected properties
     useEffect(() => {
         if (selectAllProps) {
@@ -247,6 +259,23 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                                     ))}
                                 </div>
                             </div>
+                            {readOnlyMatches.length > 0 && (
+                                <div className={styles.modalReadOnly} role="group" aria-labelledby="snr-not-updated-heading">
+                                    <Typography variant="subheading" weight="bold" id="snr-not-updated-heading">
+                                        {t('label.notUpdatedHeading', {count: readOnlyMatches.length})}
+                                    </Typography>
+                                    <Typography variant="caption">{t('label.notUpdatedDescription')}</Typography>
+                                    <ul className={styles.modalReadOnlyList}>
+                                        {readOnlyMatches.map(item => (
+                                            <li key={item.key}>
+                                                <Typography variant="caption">
+                                                    <strong>{item.label}</strong>{' - '}{item.node}{' - '}<em>{t(item.reason)}</em>
+                                                </Typography>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </DialogContent>
                         <DialogActions>
                             <Button
