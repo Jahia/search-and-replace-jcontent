@@ -38,9 +38,9 @@
     <packaging>bundle</packaging>
     <description>Search And Replace adds a jContent app and GraphQL fields to find a term in the content of a site, preview every change on the server and replace it in the text fields of the items the user selects. It runs with the user's own rights and the searchAndReplace permission, never rewrites sub-pages, links, tags or system properties, shows the matches it does not change apart, and ships in English and French.</description>
     <scm>
-        <connection>scm:git:git@github.com:smonier/search-and-replace.git</connection>
-        <developerConnection>scm:git:git@github.com:smonier/search-and-replace.git</developerConnection>
-        <url>https://github.com/smonier/search-and-replace</url>
+        <connection>scm:git:git@github.com:Jahia/search-and-replace-jcontent.git</connection>
+        <developerConnection>scm:git:git@github.com:Jahia/search-and-replace-jcontent.git</developerConnection>
+        <url>https://github.com/Jahia/search-and-replace-jcontent</url>
         <tag>HEAD</tag>
     </scm>
     <properties>

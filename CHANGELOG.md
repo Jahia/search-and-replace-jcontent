@@ -4,6 +4,8 @@
 
 ### Build
 
+- The repository moved to the Jahia organisation as `Jahia/search-and-replace-jcontent` (the pom's `scm`
+  points there); the module id stays `search-and-replace`.
 - MIT `LICENSE` file at the root of the repository (the pom only declared the license in a header).
 - The bundle description (pom `<description>`, shown by the module manager and the Store) describes the
   jContent app and its rules; 1.1.0 still described a Content Editor tool and recursive matching.
