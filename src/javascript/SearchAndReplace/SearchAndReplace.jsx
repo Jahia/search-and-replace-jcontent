@@ -22,10 +22,9 @@ import styles from './SearchAndReplace.scss';
  * Provides a modern UI for searching and replacing text in JCR nodes
  */
 // eslint-disable-next-line complexity
-export const SearchAndReplace = ({match}) => {
+export const SearchAndReplace = ({siteKey}) => {
     const {t, i18n} = useTranslation('search-and-replace');
     const uiLanguage = i18n?.language || 'en';
-    const siteKey = match?.params?.siteKey || window?.contextJsParameters?.siteKey || window?.jahiaGWTParameters?.siteKey || '';
 
     // State management
     const [searchTerm, setSearchTerm] = useState('');
@@ -493,7 +492,7 @@ export const SearchAndReplace = ({match}) => {
 };
 
 SearchAndReplace.propTypes = {
-    match: PropTypes.object
+    siteKey: PropTypes.string.isRequired
 };
 
 export default SearchAndReplace;

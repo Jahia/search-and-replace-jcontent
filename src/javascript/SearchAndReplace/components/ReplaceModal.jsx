@@ -174,11 +174,11 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
                 termToReplace: searchTerm,
                 replacementTerm,
                 language: selectedLanguage,
-                propertiesToReplace: selectAllProps ? null : Array.from(selectedProperties),
+                propertiesToReplace: Array.from(selectedProperties),
                 searchMode: 'CASE_INSENSITIVE'
             }
         });
-    }, [siteKey, selectedNodes, searchTerm, replacementTerm, selectedLanguage, selectAllProps, selectedProperties, replaceInNodes]);
+    }, [siteKey, selectedNodes, searchTerm, replacementTerm, selectedLanguage, selectedProperties, replaceInNodes]);
 
     // Preview replacement
     const getPreviewText = useCallback((value, term, replacement) => {

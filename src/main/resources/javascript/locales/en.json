@@ -83,7 +83,8 @@
     "propertiesUpdated": "Properties Updated",
     "failed": "Failed",
     "errors": "Errors",
-    "activeFilters": "{{count}} filters active"
+    "activeFilters": "{{count}} filters active",
+    "noPermission": "You do not have permission to use Search & Replace on this site. Ask a site administrator for the \"searchAndReplace\" permission."
   },
   "accordion": {
     "title": "Content Tools"

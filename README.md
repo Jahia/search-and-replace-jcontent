@@ -40,12 +40,19 @@ It provides:
 
 ### Replace
 - Supports `EXACT_MATCH`, `CASE_INSENSITIVE`, and `REGEX`.
-- Replaces only non-protected `STRING` / `STRING[]` properties.
-- Supports property-level targeting (`propertiesToReplace`).
-- Recurses through selected nodes and their descendants.
-- For each visited node:
-  - Applies replacement in selected language translation subtree first (if exists).
-  - Applies replacement on the node itself.
+- **Scope:** each selected node and its content down to the next page, main resource
+  (`jmix:mainResource`) or folder. Selecting a page changes its title and the content of its areas,
+  never its sub-pages. A search result row lists exactly what this scope covers.
+- **Text fields only:** non-protected `string` properties edited as small text, text area or rich text,
+  without a choicelist, outside the system namespaces (`jcr:title` and `jcr:description` excepted).
+  URLs (`j:url`), tags, segment definitions (`wem:*`), node names and choicelist keys are never changed;
+  search shows such matches as read-only.
+- **Rich text:** only the text between tags is replaced. Attributes (`href`, `src`, `title`), comments,
+  `script` and `style` are left as they are, and the replacement is written as text (`&`, `<`, `>`
+  escaped).
+- **Language:** i18n fields are read and written in the selected language only.
+- `propertiesToReplace` limits the change to these property names; the UI always sends the list the
+  user ticked. `null` means every text field.
 
 ### UI
 - Language dropdown based on site active languages.
@@ -77,21 +84,30 @@ It provides:
   - `src/main/java/org/jahia/modules/searchandreplace/graphql/SearchAndReplaceMutationExtension.java`
 - Provider registration:
   - `src/main/java/org/jahia/modules/searchandreplace/graphql/SearchAndReplaceExtensionsProvider.java`
-- Core service:
-  - `src/main/java/org/jahia/modules/searchandreplace/graphql/SearchAndReplaceOperations.java`
+- GraphQL fields:
+  - `src/main/java/org/jahia/modules/searchandreplace/graphql/SearchAndReplaceQueries.java` (read-only)
+  - `src/main/java/org/jahia/modules/searchandreplace/graphql/SearchAndReplaceMutations.java` (writes)
+  - `src/main/java/org/jahia/modules/searchandreplace/graphql/SiteAccess.java` (session and permission)
+- Replacement rules (`src/main/java/org/jahia/modules/searchandreplace/service/`):
+  - `ReplaceScope` (what belongs to a node), `TextFields` (which properties are text),
+    `TextReplacer` (plain and rich text), `ReplaceEngine` (preview and write)
+- Permission: `src/main/import/permissions.xml`
 
 ## 4. GraphQL Contract
 
-The module adds `searchAndReplace` on both `Query` and `Mutation`.
+The module adds `searchAndReplace` on `Query` (read-only fields) and on `Mutation` (the write).
+graphql-java-annotations drops the `get` prefix of the Java methods: the fields are `nodeTypes` and
+`nodeTypeProperties`.
 
 ### Query operations
 - `searchNodes(termToSearch, siteKey, language, filters, limit)`
-- `getNodeTypes(siteKey)`
-- `getNodeTypeProperties(nodeType)`
+- `nodeTypes(siteKey)`
+- `nodeTypeProperties(nodeType)`
+- `previewReplace(siteKey, nodeUuid, termToReplace, replacementTerm, language, propertiesToReplace, searchMode)`:
+  every property `replaceInNodes` would change for one node, without writing
 
 ### Mutation operations
 - `replaceInNodes(siteKey, nodeUuids, termToReplace, replacementTerm, language, propertiesToReplace, searchMode)`
-- `previewReplace(nodeUuid, termToReplace, replacementTerm, propertiesToReplace)`
 
 ### Input/Enums
 - `InputSearchAndReplaceSearchFiltersInput` (generated from `SearchAndReplaceSearchFiltersInput`)
@@ -179,13 +195,20 @@ mutation ReplaceInNodesMutation(
 
 ## 5. Security Notes
 
-- User inputs are validated/sanitized (`siteKey`, `language`, `nodeType`, property names, regex pattern).
-- Replacement is hard-bounded to the requested site path (`/sites/{siteKey}/`).
+- **Permission:** every field that takes a site key requires the `searchAndReplace` permission on the
+  site node. It is declared under `site-admin`, so `site-administrator` holds it; grant it to another
+  role (Administration > Roles) to open the tool to editors. A missing site and a missing permission both
+  answer `Permission denied`.
+- **Caller's session:** every field runs with the calling user's session in the `default` workspace and
+  the selected language. Search returns only nodes the user can read; a replacement fails on any node
+  the user may not change (ACL, per-language write right, lock), reported per node in `failedNodes`.
+- **Reads and writes are separate:** `replaceInNodes` exists on `Mutation` only.
+- Replacement is bounded to the requested site path (`/sites/{siteKey}/`) and to the scope and text
+  fields described in section 2.
+- User inputs are validated (`siteKey`, `language`, `nodeType`, property names, regex pattern).
 - HTML shown in previews/results is sanitized (scriptable elements and unsafe attributes removed).
-- Replacement uses safe regex replacement escaping in case-insensitive mode.
-
-Important:
-- Operations are executed with system session helper APIs. Access to this tool should remain restricted to trusted back-office users.
+- The jContent app is shown only to users holding the permission on a site where the module is enabled.
+- Known limitation: a `REGEX` replacement runs the pattern without a time limit; the UI does not offer it.
 
 ## 6. Performance Notes
 
@@ -247,6 +270,25 @@ yarn build
 mvn -q -DskipTests compile
 ```
 
+### Tests
+
+- Unit tests (`src/test/java`, run by `mvn install`): plain and rich text replacement, system names.
+- Cypress (`tests/`, against a running Jahia with the module deployed): who may search and replace
+  (site administrator allowed; an editor without the permission, another site's administrator and a
+  write sent as a query refused, each checked past the API filter), the replacement scope, text fields,
+  rich text, languages, and the primary flow in the jContent app.
+
+```bash
+cd tests && yarn install
+JAHIA_URL=http://localhost:8080 SUPER_USER_PASSWORD=root1234 yarn e2e:ci
+```
+
+Fixture sites are built from `dx-base-demo-templates`; on an instance without it set
+`CYPRESS_SNR_TEMPLATE_SET` to an installed template set (for example `classic-templates`).
+
+- Mutation check of the guards: `scripts/mutation/run-mutants.sh` (same environment variables) disables
+  each security or scope check in turn, redeploys, and expects its Cypress spec to fail.
+
 ## 11. Troubleshooting
 
 ### `Field 'searchAndReplace' in type 'Mutation' is undefined`
@@ -274,7 +316,11 @@ mvn -q -DskipTests compile
 ## 13. Repository Structure (Quick Map)
 
 ```text
-src/main/java/org/jahia/modules/searchandreplace/graphql/   # GraphQL API + operations
+src/main/java/org/jahia/modules/searchandreplace/graphql/   # GraphQL fields, session and permission
+src/main/java/org/jahia/modules/searchandreplace/service/   # replacement scope, text fields, replacer
+src/main/import/permissions.xml                             # searchAndReplace permission (under site-admin)
+tests/                                                      # Cypress suite
+scripts/mutation/                                           # mutation check of the guards
 src/main/resources/javascript/locales/                      # i18n labels
 src/javascript/AdminPanel/                                  # Jahia route registration
 src/javascript/SearchAndReplace/                            # UI feature (search, filters, table, replace modal)
