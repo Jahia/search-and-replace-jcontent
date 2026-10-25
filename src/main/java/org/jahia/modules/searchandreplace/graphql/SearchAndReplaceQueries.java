@@ -304,7 +304,7 @@ public class SearchAndReplaceQueries {
             resultNode.setName(node.getName());
             resultNode.setDisplayName(resolveDisplayName(node, language));
             resultNode.setNodeType(node.getPrimaryNodeTypeName());
-            resultNode.setNodeTypeLabel(node.getPrimaryNodeType().getName());
+            resultNode.setNodeTypeLabel(node.getPrimaryNodeType().getLabel(node.getSession().getLocale()));
 
             JCRNodeWrapper translationNode = getTranslationNode(node, language);
             resultNode.setCreated(formatDate(resolveNodeDate(node, translationNode, "jcr:created")));

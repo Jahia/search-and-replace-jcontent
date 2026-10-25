@@ -35,6 +35,27 @@
 - The replace dialog reuses the search rows instead of running the search again, and says "Nothing was
   replaced" instead of "Replace failed" when nothing matched; selection is cleared on language change.
 
+### Interface
+
+- The panel follows jContent's layout: `LayoutContent` with a `Header` (title and actions), the content in
+  cards at the full width of the panel (no `max-width`).
+- Results in a Moonstone `DataTable`: built-in selection with select-all, pagination (25 to 200 rows per
+  page), the matching properties in their row with "Show all", names clamped to two lines, the content
+  type's display name instead of its technical name, rows that grow with their content.
+- The replace dialog is a Moonstone `Modal` (Escape, focus kept inside, portal).
+- Wording for editors ("items", "content type") instead of "nodes"; one key per singular and plural;
+  section headings, labels on the search field and the language list, alerts and statuses announced.
+
+### Build
+
+- Moonstone 2.20.3, the version jContent 3.7.1 and 3.8 run (was 2.17.5).
+- frontend-maven-plugin 2.0.1 with Node 22.21.0 and Yarn 1.22.22; JDK 17 to build (classes still target
+  Java 11); `mise.toml` pins JDK 17, Maven 3.8 and Node 22.
+- Jahia's archive repositories declared (fresh CI runners cannot resolve the 8.2 parent without them).
+- Babel targets the default browser list instead of IE 10 and Safari 7.
+- Removed `tmp/`, `schema.graphql` and the three stub documents; added `.agents/` (architecture,
+  decisions, testing).
+
 ### Breaking
 
 - Callers of the API need the `searchAndReplace` permission on the site.

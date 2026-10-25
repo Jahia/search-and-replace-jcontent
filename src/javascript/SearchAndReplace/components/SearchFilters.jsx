@@ -90,7 +90,7 @@ export const SearchFilters = ({availableNodeTypes, filters, onFiltersChange, sel
     return (
         <div className={styles.searchFiltersPanel}>
             <div className={styles.filtersHeader}>
-                <Typography variant="subheading" weight="bold">
+                <Typography component="h2" variant="subheading" weight="bold">
                     {t('label.advancedFilters')}
                 </Typography>
                 {hasActiveFilters && (

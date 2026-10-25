@@ -35,7 +35,7 @@ module.exports = (env, argv) => {
                         loader: 'babel-loader',
                         options: {
                             presets: [
-                                ['@babel/preset-env', {modules: false, targets: {safari: '7', ie: '10'}}],
+                                ['@babel/preset-env', {modules: false, targets: 'defaults'}],
                                 '@babel/preset-react'
                             ],
                             plugins: [

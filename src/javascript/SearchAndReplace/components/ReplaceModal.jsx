@@ -7,65 +7,29 @@ import {
     Typography,
     CheckboxItem,
     Chip,
-    Loader
+    Loader,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader
 } from '@jahia/moonstone';
 import PropTypes from 'prop-types';
 import {PREVIEW_REPLACE_QUERY, REPLACE_IN_NODES_MUTATION} from '../SearchAndReplace.gql-queries';
 import styles from '../SearchAndReplace.scss';
 import {isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
 
-const Dialog = ({isOpen, className, onClose, children}) => (
-    isOpen ? (
-        <div
-            className={styles.modalOverlay}
-            role="presentation"
-            onClick={event => {
-                if (event.target === event.currentTarget && onClose) {
-                    onClose();
-                }
-            }}
-        >
-            <div className={`${styles.replaceModal} ${className || ''}`} role="dialog" aria-modal="true">
-                {children}
-            </div>
-        </div>
-    ) : null
-);
-Dialog.propTypes = {
-    isOpen: PropTypes.bool,
-    className: PropTypes.string,
-    onClose: PropTypes.func,
-    children: PropTypes.node
-};
-
-const DialogTitle = ({children}) => (
-    <div className={styles.modalHeader}>
-        <Typography variant="heading" weight="bold">
-            {children}
-        </Typography>
-    </div>
-);
-DialogTitle.propTypes = {
-    children: PropTypes.node
-};
-
-const DialogContent = ({children}) => (
-    <div className={styles.modalBody}>{children}</div>
-);
+// Body and footer of the Moonstone Modal; the modal itself gives the title, Escape, focus and the portal.
+const DialogContent = ({children}) => <ModalBody>{children}</ModalBody>;
 DialogContent.propTypes = {
     children: PropTypes.node
 };
 
-const DialogContentText = ({children}) => (
-    <div>{children}</div>
-);
+const DialogContentText = ({children}) => <div>{children}</div>;
 DialogContentText.propTypes = {
     children: PropTypes.node
 };
 
-const DialogActions = ({children}) => (
-    <div className={styles.modalFooter}>{children}</div>
-);
+const DialogActions = ({children}) => <ModalFooter>{children}</ModalFooter>;
 DialogActions.propTypes = {
     children: PropTypes.node
 };
@@ -217,7 +181,8 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
         onClose();
     }, [onReplaceComplete, onClose]);
 
-    // Render based on step
+    // Render based on step: one branch per step of the dialog
+    // eslint-disable-next-line complexity
     const renderContent = () => {
         switch (step) {
             case 'input':
@@ -466,16 +431,22 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
     );
 
     return (
-        <Dialog
+        <Modal
             isOpen={isOpen}
+            size="large"
             className={styles.replaceModal}
-            onClose={step === 'progress' ? undefined : onClose}
+            onOpenChange={open => {
+                // A running replacement cannot be dismissed
+                if (!open && step !== 'progress') {
+                    onClose();
+                }
+            }}
         >
-            <DialogTitle>
-                {dialogTitle}
-            </DialogTitle>
-            {renderContent()}
-        </Dialog>
+            <div className={styles.modalShell}>
+                <ModalHeader title={dialogTitle}/>
+                {renderContent()}
+            </div>
+        </Modal>
     );
 };
 

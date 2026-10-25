@@ -44,7 +44,7 @@ describe('Search and replace - jContent app', () => {
         cy.visit(`/jahia/jcontent/${siteKey}/en/contentToolsAccordion/SearchAndReplaceAction`);
         cy.get('input[placeholder="Enter text to search for..."]').should('be.visible').type('globex{enter}');
         cy.contains('tr', 'Globex page').find('input[type=checkbox]').check({force: true});
-        cy.contains('button', 'Replace in 1 nodes').click();
+        cy.contains('button', 'Replace in 1 item').click();
         cy.get('input[placeholder="Enter replacement text..."]').type('Initech');
         cy.contains('button', 'Preview').click();
         cy.contains('[role=dialog]', 'Initech page').should('be.visible');
@@ -53,5 +53,25 @@ describe('Search and replace - jContent app', () => {
         cy.contains('Replace completed successfully!').should('be.visible');
         readProperty(pagePath, 'jcr:title', 'en').its('value').should('eq', 'Initech page');
         readProperty(childPath, 'jcr:title', 'en').its('value').should('eq', 'Child about Globex');
+    });
+
+    it('uses the full width of the panel', () => {
+        cy.viewport(1900, 1000);
+        cy.login(admin.username, admin.password);
+        cy.visit(`/jahia/jcontent/${siteKey}/en/contentToolsAccordion/SearchAndReplaceAction`);
+        cy.get('input[placeholder="Enter text to search for..."]').should('be.visible').type('globex{enter}');
+        // the first test renamed the page; the child page still matches
+        cy.get('table tbody tr').should('have.length.greaterThan', 0);
+        cy.get('.moonstone-layoutContent').should($area => {
+            const area = $area[0].getBoundingClientRect();
+            const cards = Array.from($area[0].querySelectorAll('*'))
+                .filter(el => getComputedStyle(el).boxShadow !== 'none' && el.getBoundingClientRect().width > 200)
+                .map(el => el.getBoundingClientRect());
+            expect(cards.length, 'cards rendered').to.be.greaterThan(1);
+            const left = Math.min(...cards.map(r => r.left)) - area.left;
+            const right = area.right - Math.max(...cards.map(r => r.right));
+            // same margin on both sides; the right one may add a scrollbar
+            expect(right - left, 'right margin minus left margin').to.be.within(0, 20);
+        });
     });
 });
