@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 (unreleased)
+
+### Build
+
+- `package.json` follows the pom version (1.1.1-SNAPSHOT): `release:prepare` bumps the pom only, so the
+  1.1.0 jar carried `"version": "1.1.0-SNAPSHOT"` in `javascript/apps/package.json`.
+
 ## 1.1.0 (2026-10-25)
 
 ### Security

@@ -44,10 +44,11 @@ The channel is a tag and a GitHub release with the jar (never Nexus, never `rele
 1. Every change reaches `main` through a pull request with the build green and the `jahia-security-scan`
    rules clean (`semgrep scan --config ../jahia-security-scan/tools/semgrep-harness/rules/jahia .`,
    excluding `node_modules`, `node`, `target` and `src/main/resources/javascript/apps`).
-2. Date the version's section in `CHANGELOG.md` in that pull request.
+2. In that pull request, date the version's section in `CHANGELOG.md` and set `package.json` to the
+   release version (`release:prepare` bumps the pom only).
 3. On `main`: `mvn release:clean`, then `mvn -B release:prepare -DreleaseVersion=X.Y.Z
    -DdevelopmentVersion=X.Y.(Z+1)-SNAPSHOT -Dtag=search-and-replace-X.Y.Z -DskipTests` (pushes the two
-   version commits and the tag).
+   version commits and the tag). Then set `package.json` to the next snapshot through a pull request.
 4. Build the jar in CI from the tag: `gh workflow run build.yml --ref search-and-replace-X.Y.Z`, then
    `gh run download <run id> -n search-and-replace-bundle`. Check the manifest: version X.Y.Z, no
    `Jahia-Source-Folders`.
