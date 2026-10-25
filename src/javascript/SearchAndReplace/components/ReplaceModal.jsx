@@ -16,7 +16,8 @@ import {
 import PropTypes from 'prop-types';
 import {PREVIEW_REPLACE_QUERY, REPLACE_IN_NODES_MUTATION} from '../SearchAndReplace.gql-queries';
 import styles from '../SearchAndReplace.scss';
-import {isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
+import DOMPurify from 'dompurify';
+import {PREVIEW_HTML_CONFIG, isHtmlContent, renderHighlightedText, sanitizeAndHighlightHtml} from '../utils/highlight.utils';
 
 // Body and footer of the Moonstone Modal; the modal itself gives the title, Escape, focus and the portal.
 const DialogContent = ({children}) => <ModalBody>{children}</ModalBody>;
@@ -171,10 +172,12 @@ export const ReplaceModal = ({isOpen, onClose, siteKey, selectedLanguage, select
 
     const renderPreviewValue = useCallback((value, highlightTerm, valueClassName) => {
         if (isHtmlContent(value)) {
+            // Rich text from the repository, sanitized with an allowlist before it is rendered:
+            // nosemgrep: jahia-react-dangerouslysetinnerhtml-unsanitized - value passes DOMPurify.sanitize with PREVIEW_HTML_CONFIG (formatting tags only, no attribute but class)
             return (
                 <div
                     /* eslint-disable-next-line react/no-danger */
-                    dangerouslySetInnerHTML={{__html: sanitizeAndHighlightHtml(value, highlightTerm, styles.highlight)}}
+                    dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(sanitizeAndHighlightHtml(value, highlightTerm, styles.highlight), PREVIEW_HTML_CONFIG)}}
                     className={`${valueClassName} ${styles.modalPreviewHtml}`}
                 />
             );

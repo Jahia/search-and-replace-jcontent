@@ -7,6 +7,10 @@ import {TestUser, addNodeTree, createTestSite, createTestUser, deleteTestSite, r
  * seat, and on an instance with no free seat Jahia answers 503 "License terms violation" to this spec
  * only (the API specs, and the mutation check that reads them, are not affected).
  */
+// Rich text an editor could save: a handler, a javascript: link inside SVG, a style attribute
+const HOSTILE_HTML = '<p style="position:fixed;inset:0">Quokka <img src="x" onerror="window.snrXss=1">'
+    + '<svg><a xlink:href="javascript:window.snrXss=2"><text>link</text></a></svg> facts</p>';
+
 describe('Search and replace - jContent app', () => {
     const siteKey = 'snr-ui';
     const pagePath = `/sites/${siteKey}/home/snr-page`;
@@ -30,7 +34,10 @@ describe('Search and replace - jContent app', () => {
         });
         addNodeTree(`/sites/${siteKey}/contents`, {
             name: 'snr', type: 'jnt:contentFolder',
-            children: [{name: 'accent', primaryNodeType: 'jnt:text', properties: [{name: 'text', language: 'en', value: 'Le Café du coin'}]}]
+            children: [
+                {name: 'accent', primaryNodeType: 'jnt:text', properties: [{name: 'text', language: 'en', value: 'Le Café du coin'}]},
+                {name: 'hostile', primaryNodeType: 'jnt:bigText', properties: [{name: 'text', language: 'en', value: HOSTILE_HTML}]}
+            ]
         });
         createTestUser(admin, `/sites/${siteKey}`, ['site-administrator']);
     });
@@ -91,5 +98,15 @@ describe('Search and replace - jContent app', () => {
         cy.get('@row').find('input[type=checkbox]').click({force: true});
         cy.get('@row').find('input[type=checkbox]').should('not.be.checked');
         cy.contains('button', /Replace in/).should('not.exist');
+    });
+
+    it('renders rich text from the repository as text: no handler, link or style survives', () => {
+        cy.login(admin.username, admin.password);
+        cy.visit(`/jahia/jcontent/${siteKey}/en/contentToolsAccordion/SearchAndReplaceAction`);
+        cy.get('input[placeholder="Enter text to search for..."]').should('be.visible').type('quokka{enter}');
+        cy.contains('tr', 'Quokka').as('row');
+        cy.get('@row').find('mark').should('contain.text', 'Quokka');
+        cy.get('@row').find('mark').closest('div').find('img, svg, [style], [onerror], [href]').should('not.exist');
+        cy.window().its('snrXss').should('be.undefined');
     });
 });

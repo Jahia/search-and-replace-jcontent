@@ -25,6 +25,7 @@ public class GqlSearchFiltersInput {
         this.nodeType = nodeType;
     }
 
+    // nosemgrep: jahia-graphql-admin-no-permission - read-only input field of the search filters; searchNodes checks the searchAndReplace permission
     @GraphQLField
     public String getCreatedBefore() {
         return createdBefore;
@@ -34,6 +35,7 @@ public class GqlSearchFiltersInput {
         this.createdBefore = createdBefore;
     }
 
+    // nosemgrep: jahia-graphql-admin-no-permission - read-only input field of the search filters; searchNodes checks the searchAndReplace permission
     @GraphQLField
     public String getCreatedAfter() {
         return createdAfter;
