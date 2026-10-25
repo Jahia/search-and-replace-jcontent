@@ -17,7 +17,7 @@ import {
  * What a replacement changes: the selected node and its content down to the next page, main
  * resource or folder, and only the text an editor writes (text fields; in rich text, the text
  * between tags). Search and preview list exactly that. Runs as a site administrator, so this is
- * also the happy path of the API.
+ * also the happy path of the API. The same flow through the jContent app is ui-flow.spec.ts.
  */
 describe('Search and replace - scope and text fields', () => {
     const siteKey = 'snr-scope';
@@ -82,8 +82,8 @@ describe('Search and replace - scope and text fields', () => {
 
     it('previews the same changes without writing them', () => {
         uuidOf(pagePath).then(uuid => {
-            gqlOk(admin, PREVIEW, {siteKey, uuid, term: 'acme', replacement: 'Globex', language: 'en'})
-                .its('searchAndReplace.previewReplace.propertyPreviews')
+            gqlOk(admin, PREVIEW, {siteKey, uuids: [uuid], term: 'acme', replacement: 'Globex', language: 'en'})
+                .its('searchAndReplace.previewReplace.0.propertyPreviews')
                 .should(previews => {
                     expect(previews.map((p: {label: string}) => p.label)).to.have.members(['jcr:title', 'main/intro/text']);
                     expect(previews.find((p: {label: string}) => p.label === 'jcr:title').newValue).to.eq('Globex page');
@@ -106,6 +106,18 @@ describe('Search and replace - scope and text fields', () => {
         readProperty(childPath, 'jcr:title', 'en').its('value').should('eq', 'Child about Acme');
     });
 
+    it('selecting a folder changes the folder only, never the items in it', () => {
+        uuidOf(`/sites/${siteKey}/contents/snr`).then(uuid => {
+            gqlOk(admin, REPLACE, {siteKey, uuids: [uuid], term: 'acme', replacement: 'Globex', language: 'en', properties: null})
+                .its('searchAndReplace.replaceInNodes')
+                .should(result => {
+                    expect(result.unchangedNodes).to.deep.eq([uuid]);
+                    expect(result.totalPropertiesUpdated).to.eq(0);
+                });
+        });
+        readProperty(richPath, 'text', 'en').its('value').should('eq', richEn);
+    });
+
     it('replaces the text of rich text only, in the chosen language only, even with every field selected', () => {
         uuidOf(richPath).then(uuid => {
             // properties: null asks for every text field; j:tagList is not one
@@ -117,22 +129,4 @@ describe('Search and replace - scope and text fields', () => {
         readProperty(richPath, 'text', 'fr').its('value').should('eq', richFr);
         readProperty(richPath, 'j:tagList').its('values').should('deep.eq', ['acme']);
     });
-
-    it('runs from the jContent app: search, select, preview, replace', () => {
-        const term = 'Globex';
-        cy.login(admin.username, admin.password);
-        cy.visit(`/jahia/jcontent/${siteKey}/en/contentToolsAccordion/SearchAndReplaceAction`);
-        cy.get('input[placeholder="Enter text to search for..."]').should('be.visible').type(`${term}{enter}`);
-        cy.contains('tr', 'Globex page').find('input[type=checkbox]').check({force: true});
-        cy.contains('button', 'Replace in 1 nodes').click();
-        cy.get('input[placeholder="Enter replacement text..."]').type('Initech');
-        cy.contains('button', 'Preview').click();
-        cy.contains('button', 'Execute Replace').click();
-        cy.contains('Replace completed successfully!').should('be.visible');
-        readProperty(pagePath, 'jcr:title', 'en').its('value').should('eq', 'Initech page');
-        readProperty(childPath, 'jcr:title', 'en').its('value').should('eq', 'Child about Acme');
-    });
-
-    // A back-office login holds a licence seat until its session expires (60 min): sign out.
-    afterEach(() => cy.logout());
 });

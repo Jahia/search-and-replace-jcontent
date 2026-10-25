@@ -38,6 +38,10 @@ $spacing-unit: 6px;
     color: var(--color-dark);
 }
 
+.searchOptions {
+    margin-top: $spacing-unit;
+}
+
 .searchBar {
     display: flex;
     gap: $spacing-unit * 2;

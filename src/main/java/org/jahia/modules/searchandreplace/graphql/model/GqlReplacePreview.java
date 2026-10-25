@@ -1,5 +1,6 @@
 package org.jahia.modules.searchandreplace.graphql.model;
 
+import graphql.annotations.annotationTypes.GraphQLDescription;
 import graphql.annotations.annotationTypes.GraphQLField;
 import graphql.annotations.annotationTypes.GraphQLName;
 import java.util.List;
@@ -13,6 +14,7 @@ public class GqlReplacePreview {
     private String nodeUuid;
     private String nodePath;
     private List<GqlPropertyPreview> propertyPreviews;
+    private String error;
 
     public GqlReplacePreview() {
     }
@@ -48,5 +50,15 @@ public class GqlReplacePreview {
 
     public void setPropertyPreviews(List<GqlPropertyPreview> propertyPreviews) {
         this.propertyPreviews = propertyPreviews;
+    }
+
+    @GraphQLField
+    @GraphQLDescription("Why the node cannot be previewed (unreadable, outside the site, regular expression timeout), or null")
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
     }
 }

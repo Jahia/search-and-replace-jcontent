@@ -47,6 +47,18 @@ public class TextReplacerTest {
         assertEquals("cost $5", plain("cost X", "x", "$5", TextReplacer.Mode.CASE_INSENSITIVE));
     }
 
+    @Test(expected = TextReplacer.RegexTimeoutException.class, timeout = 5000)
+    public void catastrophicRegexStopsAtTheDeadline() {
+        // A backreference disables the JDK's loop memoization: about 30 s on JDK 11 without the deadline
+        String value = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!";
+        TextReplacer.replace(value, "(a+)+\\1b", "x", TextReplacer.Mode.REGEX, TextFields.Kind.PLAIN, 100);
+    }
+
+    @Test
+    public void regexWithinTheDeadlineReplaces() {
+        assertEquals("x-x", TextReplacer.replace("a1-a2", "a\\d", "x", TextReplacer.Mode.REGEX, TextFields.Kind.PLAIN, 100));
+    }
+
     @Test
     public void nothingToReplace() {
         assertNull(plain(null, "a", "b", TextReplacer.Mode.CASE_INSENSITIVE));

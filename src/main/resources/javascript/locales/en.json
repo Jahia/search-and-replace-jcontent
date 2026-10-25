@@ -42,7 +42,7 @@
     "matchesFound": "Matches Found",
     "selected": "{{count}} selected",
     "resultsFound": "Found {{count}} nodes containing \"{{term}}\"",
-    "resultsTruncated": "Results truncated for performance safety",
+    "resultsTruncated": "Only the first 200 results are shown: refine the search or the filters to see the others",
     "resultsTable": "Search Results",
     "name": "Name",
     "path": "Path",
@@ -84,7 +84,11 @@
     "failed": "Failed",
     "errors": "Errors",
     "activeFilters": "{{count}} filters active",
-    "noPermission": "You do not have permission to use Search & Replace on this site. Ask a site administrator for the \"searchAndReplace\" permission."
+    "noPermission": "You do not have permission to use Search & Replace on this site. Ask a site administrator for the \"searchAndReplace\" permission.",
+    "deepSearch": "Also find parts of words (slower: reads every content of the site when the index finds nothing)",
+    "previewNothing": "Nothing will change: the term only appears in places that are not replaced (read-only properties, other accents, or words split by formatting).",
+    "unchanged": "Unchanged",
+    "replaceNothing": "Nothing was replaced"
   },
   "accordion": {
     "title": "Content Tools"

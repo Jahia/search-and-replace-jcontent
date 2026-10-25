@@ -1,6 +1,7 @@
 package org.jahia.modules.searchandreplace.graphql;
 
 import org.apache.commons.lang.StringUtils;
+import org.jahia.modules.graphql.provider.dxm.BaseGqlClientException;
 import org.jahia.modules.searchandreplace.graphql.model.GqlSearchFiltersInput;
 import org.jahia.modules.searchandreplace.graphql.model.GqlSearchMode;
 import org.jahia.modules.searchandreplace.service.TextReplacer;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -29,14 +31,30 @@ final class InputValidation {
     private InputValidation() {
     }
 
+    /**
+     * A refused argument, reported to the caller with its message. GraphQL replaces the message of any
+     * other runtime exception with "Internal Server Error(s) while executing query". No error type, so
+     * the bundle does not import graphql-java.
+     */
+    static BaseGqlClientException invalid(String message) {
+        return new BaseGqlClientException(message, null, Collections.emptyMap());
+    }
+
+    static final int DEFAULT_LIMIT = 200;
+    static final int MAX_LIMIT = 1000;
+    static final int MAX_NODES_PER_REPLACE = 200;
+
     static int resolveLimit(Integer limit) {
-        return limit != null && limit > 0 ? limit : Integer.MAX_VALUE;
+        if (limit == null || limit <= 0) {
+            return DEFAULT_LIMIT;
+        }
+        return Math.min(limit, MAX_LIMIT);
     }
 
     static String normalizeSearchTerm(String rawTerm) {
         String trimmed = StringUtils.trimToEmpty(rawTerm);
         if (trimmed.length() > MAX_SEARCH_TERM_LENGTH) {
-            throw new IllegalArgumentException("Search term is too long. Maximum length is " + MAX_SEARCH_TERM_LENGTH);
+            throw invalid("Search term is too long. Maximum length is " + MAX_SEARCH_TERM_LENGTH);
         }
         return trimmed;
     }
@@ -44,7 +62,7 @@ final class InputValidation {
     static String validateSiteKey(String siteKey) {
         String trimmed = StringUtils.trimToNull(siteKey);
         if (trimmed == null || !SITE_KEY_PATTERN.matcher(trimmed).matches()) {
-            throw new IllegalArgumentException("Invalid site key");
+            throw invalid("Invalid site key");
         }
         return trimmed;
     }
@@ -55,7 +73,7 @@ final class InputValidation {
             return "en";
         }
         if (!LANGUAGE_PATTERN.matcher(normalized).matches()) {
-            throw new IllegalArgumentException("Invalid language");
+            throw invalid("Invalid language");
         }
         return normalized;
     }
@@ -69,7 +87,7 @@ final class InputValidation {
         String nodeType = StringUtils.trimToNull(filters.getNodeType());
         if (nodeType != null) {
             if (!NODE_TYPE_PATTERN.matcher(nodeType).matches()) {
-                throw new IllegalArgumentException("Invalid nodeType filter");
+                throw invalid("Invalid nodeType filter");
             }
             sanitized.setNodeType(nodeType);
         }
@@ -122,7 +140,7 @@ final class InputValidation {
             try {
                 Pattern.compile(term);
             } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid regular expression", e);
+                throw invalid("Invalid regular expression: " + e.getMessage());
             }
         }
         return TextReplacer.Mode.valueOf(effective.name());

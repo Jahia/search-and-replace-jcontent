@@ -6,6 +6,8 @@
 # Usage (from the module root, with a local Jahia running the module):
 #   JAHIA_URL=http://localhost:8080 SUPER_USER_PASSWORD=root1234 scripts/mutation/run-mutants.sh
 # Extra Cypress env (CYPRESS_SNR_TEMPLATE_SET...) is passed through.
+# ONLY="name1 name2" runs those mutants only. The jContent flow (ui-flow.spec.ts) is never used to
+# kill a mutant: it can fail for a reason of its own (a licence seat), which would hide a survivor.
 #
 # Equivalent mutant, not listed: dropping the system-namespace check in TextFields#isEditableName
 # survives this suite because j:tagList, the system property it seeds, is refused by its tag
@@ -31,6 +33,7 @@ survivors=0
 # run_mutant <name> <file> <spec that must fail> <perl substitution>
 run_mutant() {
   local name="$1" file="$2" spec="$3" subst="$4"
+  if [ -n "${ONLY:-}" ] && [[ " $ONLY " != *" $name "* ]]; then return; fi
   cp "$file" "$file.orig"
   trap 'mv "$file.orig" "$file"' EXIT
   perl -pi -e "$subst" "$file"
@@ -57,6 +60,19 @@ run_mutant pages-in-scope "$JAVA/service/ReplaceScope.java" replace-scope.spec.t
   's/"jnt:page", //'
 run_mutant rich-text-as-plain "$JAVA/service/TextFields.java" replace-scope.spec.ts \
   's/return Kind\.HTML;/return Kind.PLAIN;/'
+
+run_mutant batch-cap-dropped "$JAVA/graphql/SearchAndReplaceMutations.java" search-and-batch.spec.ts \
+  's/if \(nodeUuids != null && nodeUuids\.size\(\) > InputValidation\.MAX_NODES_PER_REPLACE\)/if (false)/'
+run_mutant failed-node-kept "$JAVA/graphql/SearchAndReplaceMutations.java" search-and-batch.spec.ts \
+  's/^\s*discardChanges\(session\);$//'
+run_mutant deep-search-always "$JAVA/graphql/SearchAndReplaceQueries.java" search-and-batch.spec.ts \
+  's/ && Boolean\.TRUE\.equals\(deepSearch\)//'
+run_mutant regex-without-deadline "$JAVA/service/TextReplacer.java" search-and-batch.spec.ts \
+  's/matcher\(new DeadlineCharSequence\(text, deadline\)\)/matcher(text)/'
+run_mutant folder-covers-items "$JAVA/service/ReplaceScope.java" replace-scope.spec.ts \
+  's/(public static boolean coversChildrenOf\(JCRNodeWrapper node\) throws RepositoryException \{)/$1 if (true) { return true; }/'
+run_mutant every-text-match-replaceable "$JAVA/graphql/SearchAndReplaceQueries.java" search-and-batch.spec.ts \
+  's/return !value\.equals\(TextReplacer\.replace\(/return true || !value.equals(TextReplacer.replace(/'
 
 echo "Restoring the original module"
 deploy

@@ -25,7 +25,9 @@ import java.util.List;
  * ({@link SiteAccess}): the caller needs the {@code searchAndReplace} permission on the site, and the
  * repository refuses any node the user may not change. For each selected node the replacement covers
  * the node and its content down to the next page, main resource or folder, and only its text fields
- * ({@link ReplaceEngine}). Nothing is published.
+ * ({@link ReplaceEngine}). Each node is saved on its own: a node that fails (missing right, lock,
+ * regular expression timeout) is reported and its partial changes discarded, and the others are kept.
+ * At most {@value InputValidation#MAX_NODES_PER_REPLACE} nodes per call. Nothing is published.
  */
 @GraphQLName("SearchAndReplaceMutations")
 @GraphQLDescription("Search and replace write operations")
@@ -36,6 +38,7 @@ public class SearchAndReplaceMutations {
     @GraphQLField
     @GraphQLDescription("Replace text in the text fields of the selected nodes and of their content (sub-pages excluded). "
             + "propertiesToReplace limits the change to these property names; null means every text field. "
+            + "Each node is saved on its own; at most 200 nodes per call. "
             + "Requires the searchAndReplace permission on the site.")
     public GqlReplaceResult replaceInNodes(
             @GraphQLName("siteKey") @GraphQLNonNull String siteKey,
@@ -52,6 +55,10 @@ public class SearchAndReplaceMutations {
         ReplaceEngine.Request request = new ReplaceEngine.Request(normalizedTerm, replacementTerm,
                 InputValidation.toMode(searchMode, normalizedTerm), InputValidation.sanitizePropertyNames(propertiesToReplace));
 
+        if (nodeUuids != null && nodeUuids.size() > InputValidation.MAX_NODES_PER_REPLACE) {
+            throw InputValidation.invalid("At most " + InputValidation.MAX_NODES_PER_REPLACE + " nodes per call");
+        }
+
         JCRSessionWrapper session = SiteAccess.openEditSession(normalizedLanguage);
         SiteAccess.requirePermission(session, validatedSiteKey);
 
@@ -66,23 +73,42 @@ public class SearchAndReplaceMutations {
         }
 
         for (String uuid : nodeUuids) {
+            String path = null;
             try {
                 JCRNodeWrapper node = getNodeInSite(session, uuid, validatedSiteKey);
+                path = node.getPath();
                 int propsUpdated = ReplaceEngine.apply(node, request, true).size();
                 if (propsUpdated > 0) {
+                    session.save();
                     result.getSuccessfulNodes().add(uuid);
                     result.setTotalPropertiesUpdated(result.getTotalPropertiesUpdated() + propsUpdated);
+                } else {
+                    result.getUnchangedNodes().add(uuid);
                 }
             } catch (RepositoryException | RuntimeException e) {
+                discardChanges(session);
                 result.getFailedNodes().add(uuid);
-                result.getErrors().add(new GqlReplaceError(uuid, e.getMessage(), null));
+                result.getErrors().add(new GqlReplaceError(uuid, e.getMessage(), path));
                 logger.warn("Search and replace refused or failed on node {}: {}", uuid, e.getMessage());
                 logger.debug("Search and replace failure on node {}", uuid, e);
             }
         }
 
-        session.save();
+        logger.info("Search and replace by {} on site {} ({}): {} node(s) updated, {} unchanged, {} failed, {} propert(ies) changed",
+                session.getUser().getUsername(), validatedSiteKey, normalizedLanguage, result.getSuccessfulNodes().size(),
+                result.getUnchangedNodes().size(), result.getFailedNodes().size(), result.getTotalPropertiesUpdated());
         return result;
+    }
+
+    /**
+     * Drops the unsaved changes of the node that failed, so the next node starts from a clean session.
+     */
+    private static void discardChanges(JCRSessionWrapper session) {
+        try {
+            session.refresh(false);
+        } catch (RepositoryException e) {
+            logger.warn("Could not discard the changes of a failed replacement: {}", e.getMessage());
+        }
     }
 
     /**

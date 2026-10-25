@@ -10,6 +10,7 @@ import org.jahia.modules.searchandreplace.graphql.model.*;
 import org.jahia.modules.searchandreplace.service.ReplaceEngine;
 import org.jahia.modules.searchandreplace.service.ReplaceScope;
 import org.jahia.modules.searchandreplace.service.TextFields;
+import org.jahia.modules.searchandreplace.service.TextReplacer;
 import org.jahia.services.content.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,19 +52,25 @@ public class SearchAndReplaceQueries {
     private static final DateTimeFormatter MONTH_DAY_YEAR_SLASH_FORMAT = DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
     @GraphQLField
-    @GraphQLDescription("Search for nodes containing a specific term. Requires the searchAndReplace permission on the site.")
+    @GraphQLDescription("Search for nodes containing a specific term, through the full-text index. "
+            + "Returns at most `limit` rows (default 200, maximum 1000) after skipping `offset` rows; `truncated` "
+            + "tells that more rows exist. `deepSearch` also scans every node of the site when the index finds "
+            + "nothing (finds parts of words, slow on large sites). Requires the searchAndReplace permission on the site.")
     public GqlSearchNodesResult searchNodes(
             @GraphQLName("termToSearch") @GraphQLNonNull String termToSearch,
             @GraphQLName("siteKey") @GraphQLNonNull String siteKey,
             @GraphQLName("language") @GraphQLNonNull String language,
             @GraphQLName("filters") GqlSearchFiltersInput filters,
-            @GraphQLName("limit") Integer limit
+            @GraphQLName("limit") Integer limit,
+            @GraphQLName("offset") Integer offset,
+            @GraphQLName("deepSearch") Boolean deepSearch
     ) throws RepositoryException {
         String normalizedSearchTerm = InputValidation.normalizeSearchTerm(termToSearch);
         String validatedSiteKey = InputValidation.validateSiteKey(siteKey);
         String normalizedLanguage = InputValidation.normalizeLanguage(language);
         GqlSearchFiltersInput safeFilters = InputValidation.sanitizeFilters(filters);
         int maxResults = InputValidation.resolveLimit(limit);
+        int skip = offset != null && offset > 0 ? offset : 0;
 
         JCRSessionWrapper session = SiteAccess.openEditSession(normalizedLanguage);
         SiteAccess.requirePermission(session, validatedSiteKey);
@@ -86,11 +93,12 @@ public class SearchAndReplaceQueries {
 
         List<GqlSearchResultNode> resultNodes = new ArrayList<>();
         Set<String> processedNodeIds = new HashSet<>();
-        int[] counters = {0, 0};
+        int[] counters = {0, 0, skip};
         boolean truncated = collectResults(session, queryResult.getNodes(), normalizedSearchTerm, safeFilters,
                 normalizedLanguage, maxResults, resultNodes, processedNodeIds, counters);
 
-        if (resultNodes.isEmpty()) {
+        // The scan reads every node of the site: only on request, and only when the index found nothing.
+        if (resultNodes.isEmpty() && processedNodeIds.isEmpty() && Boolean.TRUE.equals(deepSearch)) {
             Query fallbackQuery = buildSearchQuery(qm, session.getValueFactory(), normalizedSearchTerm, validatedSiteKey, safeFilters, false);
             QueryResult fallbackResult;
             try {
@@ -139,7 +147,7 @@ public class SearchAndReplaceQueries {
     public List<GqlPropertyInfo> getNodeTypeProperties(@GraphQLName("nodeType") @GraphQLNonNull String nodeType) throws RepositoryException {
         String safeNodeType = StringUtils.trimToNull(nodeType);
         if (safeNodeType == null || !InputValidation.NODE_TYPE_PATTERN.matcher(safeNodeType).matches()) {
-            throw new IllegalArgumentException("Invalid node type");
+            throw InputValidation.invalid("Invalid node type");
         }
 
         JCRSessionWrapper session = SiteAccess.openEditSession("en");
@@ -159,11 +167,12 @@ public class SearchAndReplaceQueries {
     }
 
     @GraphQLField
-    @GraphQLDescription("Preview, without writing, every property that replaceInNodes would change for one selected node. "
-            + "Same arguments and rules as replaceInNodes. Requires the searchAndReplace permission on the site.")
-    public GqlReplacePreview previewReplace(
+    @GraphQLDescription("Preview, without writing, every property that replaceInNodes would change for each selected node. "
+            + "Same arguments and rules as replaceInNodes; one preview per node, with an error instead of changes when the "
+            + "node cannot be read. Requires the searchAndReplace permission on the site.")
+    public List<GqlReplacePreview> previewReplace(
             @GraphQLName("siteKey") @GraphQLNonNull String siteKey,
-            @GraphQLName("nodeUuid") @GraphQLNonNull String nodeUuid,
+            @GraphQLName("nodeUuids") @GraphQLNonNull List<String> nodeUuids,
             @GraphQLName("termToReplace") @GraphQLNonNull String termToReplace,
             @GraphQLName("replacementTerm") @GraphQLNonNull String replacementTerm,
             @GraphQLName("language") @GraphQLNonNull String language,
@@ -173,34 +182,46 @@ public class SearchAndReplaceQueries {
         String validatedSiteKey = InputValidation.validateSiteKey(siteKey);
         String normalizedLanguage = InputValidation.normalizeLanguage(language);
         String normalizedTerm = InputValidation.normalizeSearchTerm(termToReplace);
-        if (StringUtils.isBlank(nodeUuid) || normalizedTerm.isEmpty()) {
-            throw new IllegalArgumentException("nodeUuid and termToReplace are required");
+        if (normalizedTerm.isEmpty()) {
+            throw InputValidation.invalid("termToReplace is required");
+        }
+        if (nodeUuids.size() > InputValidation.MAX_NODES_PER_REPLACE) {
+            throw InputValidation.invalid("At most " + InputValidation.MAX_NODES_PER_REPLACE + " nodes per call");
         }
         ReplaceEngine.Request request = new ReplaceEngine.Request(normalizedTerm, replacementTerm,
                 InputValidation.toMode(searchMode, normalizedTerm), InputValidation.sanitizePropertyNames(propertiesToReplace));
 
         JCRSessionWrapper session = SiteAccess.openEditSession(normalizedLanguage);
         SiteAccess.requirePermission(session, validatedSiteKey);
-        JCRNodeWrapper node = SearchAndReplaceMutations.getNodeInSite(session, nodeUuid, validatedSiteKey);
 
-        GqlReplacePreview preview = new GqlReplacePreview();
-        preview.setNodeUuid(node.getIdentifier());
-        preview.setNodePath(node.getPath());
-        List<GqlPropertyPreview> previews = new ArrayList<>();
-        for (ReplaceEngine.Change change : ReplaceEngine.apply(node, request, false)) {
-            String relativePath = change.getNodePath().substring(node.getPath().length());
-            String label = StringUtils.removeStart(relativePath + "/" + change.getPropertyName(), "/");
-            previews.add(new GqlPropertyPreview(change.getPropertyName(), change.getOldValue(), change.getNewValue(), label));
+        List<GqlReplacePreview> previews = new ArrayList<>();
+        for (String uuid : nodeUuids) {
+            GqlReplacePreview preview = new GqlReplacePreview();
+            preview.setNodeUuid(uuid);
+            preview.setPropertyPreviews(new ArrayList<>());
+            try {
+                JCRNodeWrapper node = SearchAndReplaceMutations.getNodeInSite(session, uuid, validatedSiteKey);
+                preview.setNodePath(node.getPath());
+                for (ReplaceEngine.Change change : ReplaceEngine.apply(node, request, false)) {
+                    String relativePath = change.getNodePath().substring(node.getPath().length());
+                    String label = StringUtils.removeStart(relativePath + "/" + change.getPropertyName(), "/");
+                    preview.getPropertyPreviews().add(new GqlPropertyPreview(change.getPropertyName(),
+                            change.getOldValue(), change.getNewValue(), label));
+                }
+            } catch (RepositoryException | RuntimeException e) {
+                preview.setError(e.getMessage());
+            }
+            previews.add(preview);
         }
-        preview.setPropertyPreviews(previews);
-        return preview;
+        return previews;
     }
 
     // Helper methods
 
     /**
      * Turns query hits into result rows until the limit; returns whether hits were left over.
-     * {@code counters[0]} counts rows, {@code counters[1]} scanned candidates.
+     * {@code counters[0]} counts returned rows, {@code counters[1]} scanned candidates,
+     * {@code counters[2]} rows still to skip for the offset.
      */
     private boolean collectResults(JCRSessionWrapper session, NodeIterator nodes, String searchTerm,
                                    GqlSearchFiltersInput filters, String language, int maxResults,
@@ -217,8 +238,12 @@ public class SearchAndReplaceQueries {
 
             GqlSearchResultNode resultNode = createSearchResultNode(searchableNode, searchTerm, filters, language);
             if (resultNode != null) {
-                resultNodes.add(resultNode);
                 processedNodeIds.add(searchableNode.getIdentifier());
+                if (counters[2] > 0) {
+                    counters[2]--;
+                    continue;
+                }
+                resultNodes.add(resultNode);
                 counters[0]++;
             }
         }
@@ -321,6 +346,9 @@ public class SearchAndReplaceQueries {
         }
         matches.addAll(collectMatchingProperties(currentNode, currentNode, searchTerm, propertyFilter, prefix));
 
+        if (!ReplaceScope.coversChildrenOf(currentNode)) {
+            return;
+        }
         NodeIterator children = currentNode.getNodes();
         while (children.hasNext()) {
             JCRNodeWrapper child = toNodeWrapper(currentNode, children.nextNode());
@@ -356,14 +384,14 @@ public class SearchAndReplaceQueries {
                     continue;
                 }
 
-                boolean isReplaceable = TextFields.kindOf(ownerNode, propName) != null;
+                TextFields.Kind kind = TextFields.kindOf(ownerNode, propName);
                 String label = propertyPrefix + propName;
 
                 if (property.isMultiple()) {
                     for (Value value : property.getValues()) {
                         String raw = value != null ? value.getString() : null;
                         if (containsIgnoreCase(raw, searchTerm)) {
-                            matches.add(new GqlPropertyMatch(propName, raw, label, isReplaceable));
+                            matches.add(new GqlPropertyMatch(propName, raw, label, wouldChange(raw, searchTerm, kind)));
                         }
                     }
                     continue;
@@ -371,7 +399,7 @@ public class SearchAndReplaceQueries {
 
                 String raw = property.getString();
                 if (containsIgnoreCase(raw, searchTerm)) {
-                    matches.add(new GqlPropertyMatch(propName, raw, label, isReplaceable));
+                    matches.add(new GqlPropertyMatch(propName, raw, label, wouldChange(raw, searchTerm, kind)));
                 }
             }
         } catch (RepositoryException e) {
@@ -379,6 +407,18 @@ public class SearchAndReplaceQueries {
         }
 
         return matches;
+    }
+
+    /**
+     * Tells whether the replacement the UI runs (case-insensitive, text only) would change the value.
+     * Search also finds a term written with other accents or split by markup ("Caf&eacute;",
+     * "Ac&lt;em&gt;me"); such a match is shown but is not replaceable.
+     */
+    private boolean wouldChange(String value, String searchTerm, TextFields.Kind kind) {
+        if (kind == null || value == null) {
+            return false;
+        }
+        return !value.equals(TextReplacer.replace(value, searchTerm, "\u0000", TextReplacer.Mode.CASE_INSENSITIVE, kind));
     }
 
     private boolean containsIgnoreCase(String value, String searchTerm) {
