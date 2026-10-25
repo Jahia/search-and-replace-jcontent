@@ -11,6 +11,13 @@ curl -u root:<password> -F 'script=[{"installAndStartBundle":"search-and-replace
 
 Enable the module on a site (Site Settings or `j:installedModules`) to see the jContent app.
 
+## Continuous integration
+
+`.github/workflows/build.yml`: on every pull request (any base branch) and push to `main`, `jdx/mise-action`
+installs `mise.toml`, the job fails unless Maven is 3.8, runs `mvn -B clean install` (lint, webpack, unit
+tests, bundle) and checks that the jar carries `remoteEntry.js`. Cypress is not run in CI: it needs a
+running Jahia and a licence.
+
 ## Cypress (`tests/`)
 
 ```bash
