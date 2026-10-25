@@ -1,6 +1,7 @@
 import {registry} from '@jahia/ui-extender';
 import {AdminPanel} from './AdminPanel';
 import React, {Suspense} from 'react';
+import {Loader} from '@jahia/moonstone';
 
 const CONTENT_TOOLS_ACCORDION_TYPE = 'accordionItem';
 const CONTENT_TOOLS_ACCORDION_KEY = 'contentToolsAccordion';
@@ -37,6 +38,7 @@ export const registerRoutes = () => {
         icon: window.jahia.moonstone.toIconComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="5"></circle><line x1="13" y1="13" x2="18" y2="18"></line><path d="M15 5h4v4"></path><path d="M19 9c0-2.2-1.8-4-4-4"></path><path d="M9 19H5v-4"></path><path d="M5 15c0 2.2 1.8 4 4 4"></path></svg>'), label: 'search-and-replace:label.menu',
         isSelectable: true,
         requireModuleInstalledOnSite: MODULE_KEY,
-        render: () => <Suspense fallback="loading ..."><AdminPanel/></Suspense>
+        requiredPermission: 'searchAndReplace',
+        render: () => <Suspense fallback={<Loader size="big"/>}><AdminPanel/></Suspense>
     });
 };

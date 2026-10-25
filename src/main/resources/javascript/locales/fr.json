@@ -83,7 +83,8 @@
     "propertiesUpdated": "Propriétés Mises à Jour",
     "failed": "Échoué",
     "errors": "Erreurs",
-    "activeFilters": "{{count}} filtres actifs"
+    "activeFilters": "{{count}} filtres actifs",
+    "noPermission": "Vous n'avez pas la permission d'utiliser Rechercher et remplacer sur ce site. Demandez la permission \"searchAndReplace\" à un administrateur du site."
   },
   "accordion": {
     "title": "Outils de contenu"

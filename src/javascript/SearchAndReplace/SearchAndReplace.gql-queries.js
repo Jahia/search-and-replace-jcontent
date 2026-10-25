@@ -134,21 +134,27 @@ export const REPLACE_IN_NODES_MUTATION = gql`
 `;
 
 /**
- * Mutation to preview what would be replaced
+ * Query to preview, without writing, what replaceInNodes would change for one node
  */
-export const PREVIEW_REPLACE_MUTATION = gql`
-    mutation PreviewReplaceMutation(
+export const PREVIEW_REPLACE_QUERY = gql`
+    query PreviewReplaceQuery(
+        $siteKey: String!
         $nodeUuid: String!
         $termToReplace: String!
         $replacementTerm: String!
+        $language: String!
         $propertiesToReplace: [String!]
+        $searchMode: SearchAndReplaceSearchMode
     ) {
         searchAndReplace {
             previewReplace(
+                siteKey: $siteKey
                 nodeUuid: $nodeUuid
                 termToReplace: $termToReplace
                 replacementTerm: $replacementTerm
+                language: $language
                 propertiesToReplace: $propertiesToReplace
+                searchMode: $searchMode
             ) {
                 nodeUuid
                 nodePath

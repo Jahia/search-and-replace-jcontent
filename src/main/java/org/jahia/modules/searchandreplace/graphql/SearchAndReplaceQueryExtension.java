@@ -7,7 +7,7 @@ import graphql.annotations.annotationTypes.GraphQLTypeExtension;
 import org.jahia.modules.graphql.provider.dxm.DXGraphQLProvider;
 
 /**
- * GraphQL Query extension to add searchAndReplace field
+ * GraphQL Query extension: {@code Query.searchAndReplace} holds the read-only fields only.
  */
 @GraphQLTypeExtension(DXGraphQLProvider.Query.class)
 public final class SearchAndReplaceQueryExtension {
@@ -18,8 +18,8 @@ public final class SearchAndReplaceQueryExtension {
 
     @GraphQLField
     @GraphQLName("searchAndReplace")
-    @GraphQLDescription("Search and Replace operations")
-    public static SearchAndReplaceOperations searchAndReplace() {
-        return new SearchAndReplaceOperations();
+    @GraphQLDescription("Search and replace read operations")
+    public static SearchAndReplaceQueries searchAndReplace() {
+        return new SearchAndReplaceQueries();
     }
 }

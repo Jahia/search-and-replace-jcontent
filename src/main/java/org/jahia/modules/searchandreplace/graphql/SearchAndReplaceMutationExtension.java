@@ -7,7 +7,7 @@ import graphql.annotations.annotationTypes.GraphQLTypeExtension;
 import org.jahia.modules.graphql.provider.dxm.DXGraphQLProvider;
 
 /**
- * GraphQL Mutation extension to add searchAndReplace field.
+ * GraphQL Mutation extension: {@code Mutation.searchAndReplace} holds the write fields only.
  */
 @GraphQLTypeExtension(DXGraphQLProvider.Mutation.class)
 public final class SearchAndReplaceMutationExtension {
@@ -18,8 +18,8 @@ public final class SearchAndReplaceMutationExtension {
 
     @GraphQLField
     @GraphQLName("searchAndReplace")
-    @GraphQLDescription("Search and Replace operations")
-    public static SearchAndReplaceOperations searchAndReplace() {
-        return new SearchAndReplaceOperations();
+    @GraphQLDescription("Search and replace write operations")
+    public static SearchAndReplaceMutations searchAndReplace() {
+        return new SearchAndReplaceMutations();
     }
 }
