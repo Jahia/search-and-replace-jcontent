@@ -361,3 +361,7 @@ src/javascript/SearchAndReplace/                            # UI feature (search
 
 `.agents/` holds this module's architecture and decisions for AI agents and developers. Generic Jahia
 knowledge (UI extensions, GraphQL security, Cypress) lives in the AIStartupKit harness it links to.
+
+## 15. License
+
+MIT, see [LICENSE](LICENSE).
